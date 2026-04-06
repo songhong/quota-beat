@@ -7,6 +7,7 @@ This document is the canonical release procedure for publishing `quota-beat` to 
 - Use this SOP only when you are intentionally publishing a new npm release.
 - Do not bump `package.json` version for docs-only or draft changes by default.
 - Only bump the version when the maintainer explicitly decides to publish.
+- Publishing is performed by GitHub Actions via npm trusted publishing, not by running `npm publish` manually on a maintainer laptop.
 
 ## Semver Policy
 
@@ -18,16 +19,28 @@ This document is the canonical release procedure for publishing `quota-beat` to 
 
 - Work from a clean git tree or understand the exact files being released.
 - Be on the branch you intend to publish from.
-- Be logged in to npm with a maintainer account.
 - Have already run the repo verification expected for the change.
+- Have push access to the GitHub repository.
+- The npm package must already be configured with a trusted publisher that points to this repository and the workflow filename `publish.yml`.
 
 Recommended checks:
 
 ```bash
 git status --short
-npm whoami
 npm test
 ```
+
+## One-Time Setup
+
+Configure npm trusted publishing before relying on the workflow:
+
+1. On npmjs.com, open the `quota-beat` package settings and add a Trusted Publisher for GitHub Actions.
+2. Use:
+   - Organization or user: `songhong`
+   - Repository: `quota-beat`
+   - Workflow filename: `publish.yml`
+3. After the first successful trusted publish, set package publishing access to "Require two-factor authentication and disallow tokens".
+4. Do not keep a long-lived npm publish token in GitHub Actions secrets for this repo.
 
 ## Release Steps
 
@@ -58,21 +71,23 @@ npm version major
 
 This is the preferred default because each published npm version should map cleanly to a git commit and tag for traceability.
 
-### 3. Verify the publish payload
+### 3. Push the release commit and tag
 
 ```bash
-npm pack --dry-run
+git push origin HEAD --follow-tags
 ```
 
-Check that the tarball contains the expected CLI files, source files, and readmes, and does not include unrelated local artifacts.
+Pushing the tag triggers [`.github/workflows/publish.yml`](../.github/workflows/publish.yml), which:
 
-### 4. Publish to npm
+- verifies the tag matches `package.json`
+- runs `npm test`
+- runs `npm pack --dry-run`
+- publishes to npm with trusted publishing
 
-```bash
-npm publish --access public
-```
+### 4. Verify the GitHub Actions publish run
 
-`quota-beat` is an unscoped public package, so `--access public` is safe and explicit.
+- Confirm the `Publish Package` workflow succeeded for the pushed tag.
+- If the workflow fails before npm accepts the release, fix the issue and re-run the workflow or push a corrected replacement tag as appropriate.
 
 ### 5. Verify the published result
 
@@ -89,12 +104,6 @@ qbeat --help
 
 ## Post-Release
 
-- Push the release commit and tag after publish:
-
-```bash
-git push origin HEAD --follow-tags
-```
-
 - If the release included extra docs or metadata changes, make sure they are part of the same release history.
 - If the published package changes install or upgrade behavior, re-check the related README sections.
 
@@ -102,11 +111,8 @@ git push origin HEAD --follow-tags
 
 ```bash
 git status --short
-npm whoami
 npm test
 npm version patch
-npm pack --dry-run
-npm publish --access public
-npm view quota-beat version
 git push origin HEAD --follow-tags
+npm view quota-beat version
 ```

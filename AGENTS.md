@@ -90,6 +90,8 @@ The canonical npm publish procedure lives in [`docs/npm-publish-sop.md`](docs/np
   Only update the version when a maintainer explicitly asks to publish a release.
 - When publishing, prefer `npm version patch|minor|major` from a clean git tree
   so the npm release maps to a dedicated git commit and git tag.
+- npm releases are published by GitHub Actions trusted publishing from
+  [`.github/workflows/publish.yml`](.github/workflows/publish.yml) when a matching `v*` tag is pushed.
 
 ## Verification
 
@@ -119,6 +121,8 @@ For a full clean-machine sleep/wake validation flow, use [`docs/sleep-wake-verif
 - Validate the semver bump against the actual scope of the change before publishing.
 - Do not change the version just because release documentation changed.
 - Publish from a clean git tree so `npm version` can create the release commit and tag.
+- The canonical release flow is: run local verification, run `npm version patch|minor|major`,
+  then push `HEAD --follow-tags` so GitHub Actions publishes to npm.
 - If the release changes behavior, update this file and the relevant docs in the same change.
 
 ## Change Rules
