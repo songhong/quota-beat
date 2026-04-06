@@ -21,8 +21,27 @@ describe('qbeat CLI', () => {
     assert.match(stdout, /Usage: qbeat <command> \[options\]/);
     assert.match(stdout, /Aliases: qbeat, quotabeat/);
     assert.match(stdout, /Keep Claude Code on a fixed daily wake \+ kick schedule on macOS\./);
+    assert.match(stdout, /install\s+Register launchd \+ pmset wake at a fixed time/);
+    assert.match(stdout, /status\s+Show the installed daily schedule/);
+    assert.match(stdout, /kick\s+Kick Claude Code now/);
+    assert.match(stdout, /uninstall\s+Remove launchd \+ pmset schedules/);
+    assert.doesNotMatch(stdout, /^\s*run\s+/m);
     assert.match(stdout, /qbeat install --time 07:00/);
     assert.match(stdout, /Run `qbeat <command> -h` for command-specific help\./);
+  });
+
+  it('does not expose help for the internal run command', async t => {
+    const sandbox = createCliSandbox(t);
+
+    await assert.rejects(
+      runCli(sandbox, ['help', 'run']),
+      err => {
+        assert.equal(err.code, 1);
+        assert.match(err.stderr, /Unknown help topic: run/);
+        assert.match(err.stderr, /Run `qbeat --help` to see available commands\./);
+        return true;
+      }
+    );
   });
 
   it('shows detailed help for install', async t => {
@@ -349,7 +368,7 @@ describe('qbeat CLI', () => {
       err => {
         assert.equal(err.code, 1);
         assert.match(err.stderr, /Missing required option --time\./);
-        assert.match(err.stderr, /See `qbeat run -h` for usage\./);
+        assert.match(err.stderr, /Run `qbeat --help` to see available commands\./);
         return true;
       }
     );

@@ -76,7 +76,7 @@ qbeat status
 
 当你在交互式终端里运行 `qbeat` 时，它会大约每天检查一次 npm 上是否有更新版本。
 如果发现新版本，`qbeat` 会提示你是否执行 `npm install -g quota-beat@latest`。
-后台的 `qbeat run` 路径永远不会执行更新检查，也不会弹出提示。
+后台定时路径永远不会执行更新检查，也不会弹出提示。
 
 ## 工作原理
 
@@ -84,7 +84,7 @@ qbeat status
 ┌─────────────────────────────────────────────────────┐
 │  pmset repeat wakeorpoweron（配置时间前 2 分钟）      │
 │        ↓  Mac 从睡眠中唤醒                            │
-│  launchd 触发  qbeat run --time HH:MM                │
+│  launchd 触发已安装的 quota-beat 定时任务            │
 │        ↓                                            │
 │  1. 等待网络就绪（最多 30 秒）                         │
 │  2. 发送最小 Claude CLI 请求                          │
@@ -93,7 +93,7 @@ qbeat status
 ```
 
 1. **`pmset repeat wakeorpoweron`** 每天在配置时间前 2 分钟唤醒 Mac。
-2. **`launchd`** 在配置的精确时间触发 `qbeat run --time HH:MM`。
+2. **`launchd`** 在配置的精确时间触发已安装的 quota-beat 定时任务。
 3. 工具检查网络连通性（DNS 查询 `api.anthropic.com`，最多重试 30 秒）。
 4. 发送一个最小的 Claude CLI 请求（`claude -p --model haiku "Reply with exactly OK."`）来激活配额。
 5. 每次 Claude 调用都会追加到 `~/.quota-beat/logs/claude.jsonl`，便于事后核查。

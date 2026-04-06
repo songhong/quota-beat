@@ -1,5 +1,5 @@
 export const DEFAULT_INSTALL_TIME = '07:00';
-export const HELP_COMMANDS = new Set(['install', 'status', 'kick', 'uninstall', 'run']);
+export const HELP_COMMANDS = new Set(['install', 'status', 'kick', 'uninstall']);
 export const RECOMMENDED_COMMAND = 'qbeat';
 const COMMAND_ALIASES = ['qbeat', 'quotabeat'];
 
@@ -77,24 +77,16 @@ Options:
 Note:
   This does not uninstall the globally installed ${RECOMMENDED_COMMAND} binaries.`);
       return;
-    case 'run':
-      console.log(`Usage: ${RECOMMENDED_COMMAND} run --time HH:MM
-
-Internal launchd-only command that performs the scheduled Claude kick.
-
-Options:
-  -h, --help        Show this help message
-  --time HH:MM      Scheduled kick time in 24-hour format
-
-Note:
-  This command is intended to be invoked by the installed launchd plist.`);
-      return;
     default:
       printUsage();
   }
 }
 
 export function usageHint(command) {
+  if (command === 'run') {
+    return `Run \`${RECOMMENDED_COMMAND} --help\` to see available commands.`;
+  }
+
   return `See \`${RECOMMENDED_COMMAND} ${command} -h\` for usage.`;
 }
 

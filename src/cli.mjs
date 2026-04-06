@@ -252,9 +252,6 @@ async function cmdRun(args) {
   const { values } = parseCommandArgs('run', args, {
     time: { type: 'string' },
   });
-  if (maybePrintCommandHelp('run', values)) {
-    return;
-  }
 
   parseTimeValue('run', values.time, { required: true });
 

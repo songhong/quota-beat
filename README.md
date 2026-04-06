@@ -76,7 +76,7 @@ Remove the `launchd` job and all quota-beat-owned `pmset` wake entries. Does **n
 
 When you run `qbeat` in an interactive terminal, it may check npm for a newer published version about once per day.
 If one is available, `qbeat` offers to run `npm install -g quota-beat@latest` for you.
-The background `qbeat run` path never performs update checks or prompts.
+The background scheduled path never performs update checks or prompts.
 
 ## How It Works
 
@@ -84,7 +84,7 @@ The background `qbeat run` path never performs update checks or prompts.
 ┌─────────────────────────────────────────────────────┐
 │  pmset repeat wakeorpoweron (configured time − 2 min)│
 │        ↓  Mac wakes from sleep                      │
-│  launchd fires  qbeat run --time HH:MM              │
+│  launchd fires the scheduled quota-beat job         │
 │        ↓                                            │
 │  1. Wait for network (up to 30s)                    │
 │  2. Send minimal Claude CLI request                 │
@@ -93,7 +93,7 @@ The background `qbeat run` path never performs update checks or prompts.
 ```
 
 1. **`pmset repeat wakeorpoweron`** wakes your Mac 2 minutes before the configured time every day.
-2. **`launchd`** triggers `qbeat run --time HH:MM` at the exact configured time.
+2. **`launchd`** triggers the installed quota-beat job at the exact configured time.
 3. The tool checks network connectivity (DNS lookup to `api.anthropic.com`, retries for up to 30 seconds).
 4. A minimal Claude CLI request (`claude -p --model haiku "Reply with exactly OK."`) is sent to activate the quota.
 5. Each Claude attempt is appended to `~/.quota-beat/logs/claude.jsonl` for later inspection.
