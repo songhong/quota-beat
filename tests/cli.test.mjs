@@ -11,6 +11,7 @@ import {
   runCli,
   writeFile,
 } from './support/cli-harness.mjs';
+import { PACKAGE_VERSION } from '../src/meta.mjs';
 
 describe('qbeat CLI', () => {
   it('shows root help with command summary and examples', async t => {
@@ -20,6 +21,7 @@ describe('qbeat CLI', () => {
 
     assert.match(stdout, /Usage: qbeat <command> \[options\]/);
     assert.match(stdout, /Aliases: qbeat, quotabeat/);
+    assert.match(stdout, /-v, --version\s+Show the installed qbeat version/);
     assert.match(stdout, /Keep Claude Code on a fixed daily wake \+ kick schedule on macOS\./);
     assert.match(stdout, /install\s+Register launchd \+ pmset wake at a fixed time/);
     assert.match(stdout, /status\s+Show the installed daily schedule/);
@@ -28,6 +30,21 @@ describe('qbeat CLI', () => {
     assert.doesNotMatch(stdout, /^\s*run\s+/m);
     assert.match(stdout, /qbeat install --time 07:00/);
     assert.match(stdout, /Run `qbeat <command> -h` for command-specific help\./);
+  });
+
+  it('prints the installed version from the root flag', async t => {
+    const sandbox = createCliSandbox(t);
+
+    const { stdout } = await runCli(sandbox, ['--version'], {
+      env: {
+        QUOTA_BEAT_FORCE_UPDATE_CHECK: '1',
+        QUOTA_BEAT_AUTO_UPDATE: 'yes',
+        QUOTA_BEAT_NPM_VIEW_VERSION: '9.9.9',
+      },
+    });
+
+    assert.equal(stdout.trim(), PACKAGE_VERSION);
+    assert.deepEqual(readLines(sandbox.npmLogPath), []);
   });
 
   it('does not expose help for the internal run command', async t => {

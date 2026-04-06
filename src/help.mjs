@@ -9,6 +9,10 @@ export function printUsage() {
 Keep Claude Code on a fixed daily wake + kick schedule on macOS.
 Aliases: ${COMMAND_ALIASES.join(', ')}
 
+Global options:
+  -h, --help       Show root help
+  -v, --version    Show the installed ${RECOMMENDED_COMMAND} version
+
 Commands:
   install     Register launchd + pmset wake at a fixed time
   status      Show the installed daily schedule

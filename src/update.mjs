@@ -4,12 +4,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { HELP_COMMANDS, RECOMMENDED_COMMAND } from './help.mjs';
-
-const packageJson = JSON.parse(
-  readFileSync(new URL('../package.json', import.meta.url), 'utf-8')
-);
-const PACKAGE_NAME = packageJson.name;
-const PACKAGE_VERSION = packageJson.version;
+import { PACKAGE_NAME, PACKAGE_VERSION } from './meta.mjs';
 const UPDATE_ELIGIBLE_COMMANDS = new Set([...HELP_COMMANDS].filter(command => command !== 'run'));
 const DEFAULT_UPDATE_CHECK_TTL_MS = 24 * 60 * 60 * 1000;
 

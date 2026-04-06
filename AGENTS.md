@@ -12,6 +12,8 @@ This file is the canonical engineering source of truth for this repository.
 Interactive foreground commands may also check for a newer published npm version and offer a self-update.
 
 Public commands:
+- `qbeat -v`
+- `qbeat --version`
 - `qbeat install [--time HH:MM]`
 - `qbeat status`
 - `qbeat kick`
@@ -52,7 +54,7 @@ The canonical npm publish procedure lives in [`docs/npm-publish-sop.md`](docs/np
 - `run` is launchd-only. It attempts the Claude kick only. After network readiness, it randomizes the first Claude launch by 0 to 5 minutes. Wake scheduling is handled by `pmset repeat` (set once during `install`).
 - `run` requires an explicit `--time HH:MM`.
 - Automatic update checks must never run in `run`.
- - User-facing help text and end-user docs must not advertise `run`. Only `install`, `status`, `kick`, and `uninstall` are public commands.
+- User-facing help text and end-user docs must not advertise `run`. Only `install`, `status`, `kick`, and `uninstall` are public subcommands. Root flags `-v`/`--version` are public.
   launchd executions must stay non-interactive and must not require npm.
 - Every Claude CLI attempt is appended to `~/.quota-beat/logs/claude.jsonl` as JSON Lines.
   This log is additive and is separate from the launchd stdout/stderr files.

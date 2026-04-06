@@ -31,6 +31,7 @@ import {
   setPmsetRepeatWakeTime,
   unregisterLaunchd,
 } from './scheduler.mjs';
+import { PACKAGE_VERSION } from './meta.mjs';
 import { maybeSelfUpdate } from './update.mjs';
 
 const SUPPORTED_PLATFORM = 'darwin';
@@ -286,6 +287,11 @@ export async function run(args) {
 
     if (!command || command === '-h' || command === '--help') {
       printUsage();
+      return;
+    }
+
+    if (command === '-v' || command === '--version') {
+      console.log(PACKAGE_VERSION);
       return;
     }
 

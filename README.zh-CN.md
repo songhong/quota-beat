@@ -52,6 +52,10 @@ qbeat status
 
 ## 命令
 
+### `qbeat --version`
+
+显示当前已安装的 `qbeat` 版本并退出。
+
 ### `qbeat install [--time HH:MM]`
 
 注册 `launchd` 定时任务和 `pmset` 唤醒计划。
@@ -76,6 +80,7 @@ qbeat status
 
 当你在交互式终端里运行 `qbeat` 时，它会大约每天检查一次 npm 上是否有更新版本。
 如果发现新版本，`qbeat` 会提示你是否执行 `npm install -g quota-beat@latest`。
+`qbeat --version` 只会输出当前安装版本，不会执行这一步检查。
 后台定时路径永远不会执行更新检查，也不会弹出提示。
 
 ## 工作原理
