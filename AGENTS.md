@@ -22,12 +22,14 @@ Internal command:
 
 ## Runtime Architecture
 
-The implementation is intentionally small and split into four modules:
+The implementation is intentionally small and split into five modules:
 
 - [`src/cli.mjs`](src/cli.mjs)
   Command routing, time parsing, install/status/kick/uninstall flow.
 - [`src/help.mjs`](src/help.mjs)
   Root help text, command help text, and usage hints.
+- [`src/update.mjs`](src/update.mjs)
+  Interactive foreground npm version checks, caching, prompting, and self-update flow.
 - [`src/scheduler.mjs`](src/scheduler.mjs)
   launchd plist generation, plist parsing, pmset wake scheduling, wake cleanup.
 - [`src/kick.mjs`](src/kick.mjs)

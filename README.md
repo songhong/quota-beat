@@ -100,12 +100,13 @@ The background `qbeat run` path never performs update checks or prompts.
 
 ## Architecture
 
-Four zero-dependency modules:
+Five zero-dependency modules:
 
 | Module | Responsibility |
 |---|---|
 | `src/cli.mjs` | Command routing, argument parsing, install/status/kick/uninstall flow |
 | `src/help.mjs` | Root help text, command help text, and usage hints |
+| `src/update.mjs` | Interactive npm version checks, cache management, prompting, and self-update |
 | `src/scheduler.mjs` | launchd plist generation & parsing, pmset wake scheduling & cleanup |
 | `src/kick.mjs` | Network readiness check, Claude CLI execution |
 

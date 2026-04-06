@@ -100,12 +100,13 @@ qbeat status
 
 ## 架构
 
-四个零依赖模块：
+五个零依赖模块：
 
 | 模块 | 职责 |
 |---|---|
 | `src/cli.mjs` | 命令路由、参数解析、install/status/kick/uninstall 流程 |
 | `src/help.mjs` | 根帮助文本、子命令帮助文本、用法提示 |
+| `src/update.mjs` | 交互式 npm 版本检查、缓存管理、提示与自更新执行 |
 | `src/scheduler.mjs` | launchd plist 生成与解析、pmset 唤醒调度与清理 |
 | `src/kick.mjs` | 网络就绪检查、Claude CLI 执行 |
 

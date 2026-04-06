@@ -89,6 +89,8 @@ Note: `pmset repeat` is global (one rule per type). If the user has an existing 
   Command orchestration.
 - [`src/help.mjs`](../src/help.mjs)
   Root help text, command help text, and usage hints.
+- [`src/update.mjs`](../src/update.mjs)
+  Interactive npm version checks, cached latest-version lookup, prompt flow, and self-update execution.
 - [`src/scheduler.mjs`](../src/scheduler.mjs)
   launchd and pmset integration.
 - [`src/kick.mjs`](../src/kick.mjs)
