@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { join, resolve, dirname } from 'node:path';
 import { homedir } from 'node:os';
@@ -7,6 +7,7 @@ import { parseArgs } from 'node:util';
 import {
   DEFAULT_INSTALL_TIME,
   HELP_COMMANDS,
+  RECOMMENDED_COMMAND,
   printCommandHelp,
   printUsage,
   showInstallNextStep,
@@ -37,8 +38,7 @@ const packageJson = JSON.parse(
 );
 const PACKAGE_NAME = packageJson.name;
 const PACKAGE_VERSION = packageJson.version;
-const RECOMMENDED_COMMAND = 'qbeat';
-const FOREGROUND_COMMANDS = new Set(['install', 'status', 'kick', 'uninstall']);
+const UPDATE_ELIGIBLE_COMMANDS = new Set([...HELP_COMMANDS].filter(c => c !== 'run'));
 const DEFAULT_UPDATE_CHECK_TTL_MS = 24 * 60 * 60 * 1000;
 
 function parseCommandArgs(command, args, options = {}) {
@@ -103,19 +103,15 @@ function updateCheckTtlMs() {
 
 function prepareLaunchdLogs(logDir) {
   mkdirSync(logDir, { recursive: true });
-  writeFileSync(`${logDir}/launchd.stdout.log`, '');
-  writeFileSync(`${logDir}/launchd.stderr.log`, '');
 }
 
 function readPreviousInstallState() {
-  const installedPlistPath = plistPath();
-  if (!existsSync(installedPlistPath)) {
-    return null;
+  try {
+    return { plistContent: readFileSync(plistPath(), 'utf-8') };
+  } catch (err) {
+    if (err.code === 'ENOENT') return null;
+    throw err;
   }
-
-  return {
-    plistContent: readFileSync(installedPlistPath, 'utf-8'),
-  };
 }
 
 function restorePmsetRepeat(wakeTime) {
@@ -208,7 +204,7 @@ function saveUpdateCache(latestVersion) {
 }
 
 function shouldCheckForUpdates(command) {
-  if (!FOREGROUND_COMMANDS.has(command)) {
+  if (!UPDATE_ELIGIBLE_COMMANDS.has(command)) {
     return false;
   }
 
@@ -378,7 +374,7 @@ async function cmdInstall(args) {
   prepareLaunchdLogs(logDir);
 
   const envPath = [...new Set([dirname(claudePath), dirname(nodePath)])].join(':');
-  const plist = buildPlist(time, nodePath, scriptPath, logDir, envPath);
+  const plist = buildPlist({ time, nodePath, scriptPath, logDir, envPath });
   schedulePmsetRepeat(time);
   try {
     registerLaunchd(plist);
@@ -400,17 +396,15 @@ async function cmdStatus(args) {
     return;
   }
 
-  const plist = plistPath();
-  if (!existsSync(plist)) {
-    console.log('Not installed.');
-    showInstallNextStep();
-    return;
-  }
-
   let time;
   try {
     time = readScheduledTime();
   } catch (err) {
+    if (err.code === 'ENOENT') {
+      console.log('Not installed.');
+      showInstallNextStep();
+      return;
+    }
     console.error(`Installed, but the launchd plist is unreadable: ${err.message}`);
     process.exit(1);
   }
@@ -495,14 +489,9 @@ export async function run(args) {
       return;
     }
 
-    if (HELP_COMMANDS.has(command)) {
-      const previewOptions = command === 'install' || command === 'run'
-        ? { time: { type: 'string' } }
-        : {};
-      const { values } = parseCommandArgs(command, rest, previewOptions);
-      if (maybePrintCommandHelp(command, values)) {
-        return;
-      }
+    if (HELP_COMMANDS.has(command) && (rest.includes('-h') || rest.includes('--help'))) {
+      printCommandHelp(command);
+      return;
     }
 
     if (await maybeSelfUpdate(command)) {

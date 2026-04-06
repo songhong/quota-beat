@@ -20,13 +20,13 @@ describe('scheduler helpers', () => {
   });
 
   it('builds a plist that round-trips through parseScheduledTime', () => {
-    const plist = buildPlist(
-      '08:30',
-      '/opt/homebrew/bin/node',
-      '/usr/local/lib/node_modules/quota-beat/bin/qbeat.mjs',
-      '/tmp/quota-beat-logs',
-      '/opt/homebrew/bin'
-    );
+    const plist = buildPlist({
+      time: '08:30',
+      nodePath: '/opt/homebrew/bin/node',
+      scriptPath: '/usr/local/lib/node_modules/quota-beat/bin/qbeat.mjs',
+      logDir: '/tmp/quota-beat-logs',
+      envPath: '/opt/homebrew/bin',
+    });
 
     assert.match(plist, /<string>\/opt\/homebrew\/bin\/node<\/string>/);
     assert.match(plist, /<string>\/usr\/local\/lib\/node_modules\/quota-beat\/bin\/qbeat\.mjs<\/string>/);

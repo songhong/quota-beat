@@ -1,6 +1,6 @@
 export const DEFAULT_INSTALL_TIME = '07:00';
 export const HELP_COMMANDS = new Set(['install', 'status', 'kick', 'uninstall', 'run']);
-const RECOMMENDED_COMMAND = 'qbeat';
+export const RECOMMENDED_COMMAND = 'qbeat';
 const COMMAND_ALIASES = ['qbeat', 'quotabeat'];
 
 export function printUsage() {

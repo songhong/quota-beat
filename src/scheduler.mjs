@@ -23,7 +23,7 @@ export function plistPath() {
   return join(homedir(), 'Library', 'LaunchAgents', `${PLIST_LABEL}.plist`);
 }
 
-export function buildPlist(time, nodePath, scriptPath, logDir, envPath) {
+export function buildPlist({ time, nodePath, scriptPath, logDir, envPath }) {
   const normalized = normalizeTime(time);
   const [hours, minutes] = normalized.split(':').map(Number);
   const pathValue = envPath ? `${envPath}:${DEFAULT_PATH}` : DEFAULT_PATH;
