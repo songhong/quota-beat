@@ -35,6 +35,7 @@ The implementation is intentionally small and split into four modules:
 
 Detailed architecture notes live in [`docs/architecture.md`](docs/architecture.md).
 The shortest full-machine sleep/wake validation checklist lives in [`docs/sleep-wake-verification.md`](docs/sleep-wake-verification.md).
+The canonical npm publish procedure lives in [`docs/npm-publish-sop.md`](docs/npm-publish-sop.md).
 
 ## Non-Negotiable Invariants
 
@@ -77,6 +78,14 @@ The shortest full-machine sleep/wake validation checklist lives in [`docs/sleep-
   Cache the latest-version lookup and only prompt in an interactive terminal.
 - Foreground commands should provide `-h`/`--help` output with concrete examples,
   and common failure or empty-state paths should point to the next useful command.
+- Releases follow semver.
+  Use `patch` for docs, metadata, tests, or backward-compatible fixes;
+  use `minor` for backward-compatible user-visible features;
+  use `major` for breaking CLI or runtime behavior changes.
+- Do not bump the package version for docs-only changes by default.
+  Only update the version when a maintainer explicitly asks to publish a release.
+- When publishing, prefer `npm version patch|minor|major` from a clean git tree
+  so the npm release maps to a dedicated git commit and git tag.
 
 ## Verification
 
@@ -99,6 +108,14 @@ node bin/qbeat.mjs uninstall
 ```
 
 For a full clean-machine sleep/wake validation flow, use [`docs/sleep-wake-verification.md`](docs/sleep-wake-verification.md).
+
+## Release
+
+- Use [`docs/npm-publish-sop.md`](docs/npm-publish-sop.md) for every npm release.
+- Validate the semver bump against the actual scope of the change before publishing.
+- Do not change the version just because release documentation changed.
+- Publish from a clean git tree so `npm version` can create the release commit and tag.
+- If the release changes behavior, update this file and the relevant docs in the same change.
 
 ## Change Rules
 
