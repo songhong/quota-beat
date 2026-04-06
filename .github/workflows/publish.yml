@@ -1,6 +1,7 @@
 name: Publish Package
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - 'v*'
@@ -26,7 +27,9 @@ jobs:
       - name: Verify tag matches package version
         run: |
           PACKAGE_VERSION=$(node -p "JSON.parse(require('node:fs').readFileSync('package.json', 'utf8')).version")
-          if [ "${GITHUB_REF_NAME}" != "v${PACKAGE_VERSION}" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual dispatch for package version ${PACKAGE_VERSION}."
+          elif [ "${GITHUB_REF_NAME}" != "v${PACKAGE_VERSION}" ]; then
             echo "Tag ${GITHUB_REF_NAME} does not match package.json version v${PACKAGE_VERSION}."
             exit 1
           fi
