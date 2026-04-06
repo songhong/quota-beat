@@ -23,6 +23,37 @@ function updateCheckTtlMs() {
     : DEFAULT_UPDATE_CHECK_TTL_MS;
 }
 
+function summarizeCommandFailure(err) {
+  const details = [];
+
+  if (typeof err.code === 'string' && err.code.length > 0) {
+    details.push(`code=${err.code}`);
+  }
+
+  if (typeof err.status === 'number') {
+    details.push(`status=${err.status}`);
+  }
+
+  if (typeof err.signal === 'string' && err.signal.length > 0) {
+    details.push(`signal=${err.signal}`);
+  }
+
+  const stderr = typeof err.stderr === 'string'
+    ? err.stderr.trim()
+    : Buffer.isBuffer(err.stderr)
+      ? err.stderr.toString('utf8').trim()
+      : '';
+  if (stderr) {
+    details.push(`stderr=${JSON.stringify(stderr.split('\n')[0])}`);
+  }
+
+  return details.join(' ');
+}
+
+function logUpdateCheckFailure(message) {
+  console.error(`Update check failed: ${message}`);
+}
+
 function parseVersion(value) {
   const match = value.match(/^(\d+(?:\.\d+)*)(?:-([0-9A-Za-z.-]+))?$/);
   if (!match) {
@@ -113,8 +144,19 @@ function fetchLatestPublishedVersion() {
       }
     ).trim();
     const parsed = JSON.parse(output);
-    return typeof parsed === 'string' ? parsed : null;
-  } catch {
+    if (typeof parsed === 'string') {
+      return parsed;
+    }
+
+    logUpdateCheckFailure(
+      `npm view ${PACKAGE_NAME} version --json returned non-string JSON.`
+    );
+    return null;
+  } catch (err) {
+    const summary = summarizeCommandFailure(err);
+    logUpdateCheckFailure(
+      `npm view ${PACKAGE_NAME} version --json failed${summary ? ` (${summary})` : '.'}`
+    );
     return null;
   }
 }

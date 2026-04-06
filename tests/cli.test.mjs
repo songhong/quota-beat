@@ -283,6 +283,20 @@ describe('qbeat CLI', () => {
     assert.deepEqual(readLines(sandbox.npmLogPath), []);
   });
 
+  it('emits update-check stderr output when npm view fails', async t => {
+    const sandbox = createCliSandbox(t);
+
+    const { stdout, stderr } = await runCli(sandbox, ['status'], {
+      env: {
+        QUOTA_BEAT_FORCE_UPDATE_CHECK: '1',
+      },
+    });
+
+    assert.match(stdout, /Not installed\./);
+    assert.match(stderr, /Update check failed: npm view quota-beat version --json failed/);
+    assert.match(stderr, /status=1/);
+  });
+
   it('fails status when the installed plist is unreadable', async t => {
     const sandbox = createCliSandbox(t);
     writeFile(sandbox.plistPath, '<plist></plist>');
