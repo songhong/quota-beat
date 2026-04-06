@@ -265,7 +265,7 @@ describe('qbeat CLI', () => {
     assert.doesNotMatch(stdout, /Not installed\./);
 
     const npmCalls = readLines(sandbox.npmLogPath).map(line => JSON.parse(line));
-    assert.deepEqual(npmCalls, [['install', '-g', `${PACKAGE_NAME}@latest`]]);
+    assert.deepEqual(npmCalls, [['install', '-g', `${PACKAGE_NAME}@0.2.0`]]);
   });
 
   it('continues the requested command when the update is declined', async t => {

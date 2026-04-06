@@ -182,10 +182,10 @@ async function confirmSelfUpdate(latestVersion) {
   }
 }
 
-function runSelfUpdate() {
+function runSelfUpdate(latestVersion) {
   const result = spawnSync(
     'npm',
-    ['install', '-g', `${PACKAGE_NAME}@latest`],
+    ['install', '-g', `${PACKAGE_NAME}@${latestVersion}`],
     { stdio: 'inherit' }
   );
 
@@ -195,7 +195,7 @@ function runSelfUpdate() {
 
   if ((result.status ?? 1) !== 0) {
     throw new Error(
-      `npm install -g ${PACKAGE_NAME}@latest exited with code ${result.status ?? 1}.`
+      `npm install -g ${PACKAGE_NAME}@${latestVersion} exited with code ${result.status ?? 1}.`
     );
   }
 }
@@ -226,7 +226,7 @@ export async function maybeSelfUpdate(command) {
 
   console.log(`Updating ${PACKAGE_NAME} to ${latestVersion}...`);
   try {
-    runSelfUpdate();
+    runSelfUpdate(latestVersion);
   } catch (err) {
     console.error(`Automatic update failed: ${err.message}`);
     return false;
