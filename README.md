@@ -29,7 +29,7 @@ Without this anchor, the cycle drifts based on whenever you happen to start. `qu
 npm install -g quota-beat
 ```
 
-This package installs three command aliases: `qbeat` (recommended), `quotabeat`, and `qb`.
+This package installs two command aliases: `qbeat` (recommended) and `quotabeat`.
 
 ## Upgrade
 

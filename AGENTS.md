@@ -34,6 +34,7 @@ The implementation is intentionally small and split into four modules:
   Network readiness check, minimal Claude CLI execution, and Claude attempt logging.
 
 Detailed architecture notes live in [`docs/architecture.md`](docs/architecture.md).
+The shortest full-machine sleep/wake validation checklist lives in [`docs/sleep-wake-verification.md`](docs/sleep-wake-verification.md).
 
 ## Non-Negotiable Invariants
 
@@ -70,7 +71,7 @@ Detailed architecture notes live in [`docs/architecture.md`](docs/architecture.m
   `launchd` registration must happen in the logged-in user's `gui/<uid>` domain, while `qbeat` escalates only the internal `pmset` call.
 - If the user's Node or Claude CLI installation path changes after install, they must run `qbeat install --time HH:MM` again so the plist captures the new paths.
 - `uninstall` removes launchd and quota-beat-owned pmset wake entries. It does not uninstall the globally installed binary.
-- npm installs three command names: `qbeat`, `quotabeat`, and `qb`.
+- npm installs two command names: `qbeat` and `quotabeat`.
   Documentation and help text should recommend `qbeat` as the default.
 - Interactive update checks should be low-noise.
   Cache the latest-version lookup and only prompt in an interactive terminal.
@@ -96,6 +97,8 @@ launchctl print gui/$(id -u)/com.quota-beat.kick
 tail -n 5 ~/.quota-beat/logs/claude.jsonl
 node bin/qbeat.mjs uninstall
 ```
+
+For a full clean-machine sleep/wake validation flow, use [`docs/sleep-wake-verification.md`](docs/sleep-wake-verification.md).
 
 ## Change Rules
 

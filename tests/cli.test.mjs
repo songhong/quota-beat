@@ -18,7 +18,7 @@ describe('qbeat CLI', () => {
     const { stdout } = await runCli(sandbox, ['--help']);
 
     assert.match(stdout, /Usage: qbeat <command> \[options\]/);
-    assert.match(stdout, /Aliases: quotabeat, qbeat, qb/);
+    assert.match(stdout, /Aliases: qbeat, quotabeat/);
     assert.match(stdout, /Keep Claude Code on a fixed daily wake \+ kick schedule on macOS\./);
     assert.match(stdout, /qbeat install --time 07:00/);
     assert.match(stdout, /Run `qbeat <command> -h` for command-specific help\./);

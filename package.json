@@ -12,8 +12,7 @@
   ],
   "bin": {
     "quotabeat": "./bin/quotabeat.mjs",
-    "qbeat": "./bin/qbeat.mjs",
-    "qb": "./bin/qb.mjs"
+    "qbeat": "./bin/qbeat.mjs"
   },
   "scripts": {
     "test": "node --test tests/*.test.mjs"
