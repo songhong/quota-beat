@@ -168,6 +168,7 @@ export function createCliSandbox(t, options = {}) {
   const homeDir = join(root, 'home');
   const binDir = join(root, 'bin');
   const stateDir = join(root, 'state');
+  const platformPatchPath = join(root, 'platform-darwin.cjs');
   const pmsetStatePath = join(stateDir, 'pmset.json');
   const launchctlLogPath = join(stateDir, 'launchctl.log');
   const claudeLogPath = join(stateDir, 'claude.log');
@@ -184,6 +185,10 @@ export function createCliSandbox(t, options = {}) {
   writeFileSync(launchctlLogPath, '');
   writeFileSync(claudeLogPath, '');
   writeFileSync(npmLogPath, '');
+  writeFileSync(
+    platformPatchPath,
+    `Object.defineProperty(process, 'platform', { value: 'darwin' });`
+  );
 
   writeExecutable(join(binDir, 'pmset'), pmsetShim);
   writeExecutable(join(binDir, 'sudo'), sudoShim);
@@ -205,10 +210,17 @@ export function createCliSandbox(t, options = {}) {
     claudeInvocationLogPath: join(homeDir, '.quota-beat', 'logs', 'claude.jsonl'),
     plistPath: join(homeDir, 'Library', 'LaunchAgents', plistFileName),
     env(extraEnv = {}) {
+      const inheritedNodeOptions = extraEnv.NODE_OPTIONS?.trim();
+      const nodeOptions = [`--require ${platformPatchPath}`];
+      if (inheritedNodeOptions) {
+        nodeOptions.push(inheritedNodeOptions);
+      }
+
       return {
         ...process.env,
         HOME: homeDir,
         PATH: `${binDir}:${process.env.PATH}`,
+        NODE_OPTIONS: nodeOptions.join(' '),
         QUOTA_BEAT_PMSET_STATE: pmsetStatePath,
         QUOTA_BEAT_LAUNCHCTL_LOG: launchctlLogPath,
         QUOTA_BEAT_CLAUDE_LOG: claudeLogPath,
