@@ -86,7 +86,10 @@ The canonical npm publish procedure lives in [`docs/npm-publish-sop.md`](docs/np
   Documentation and help text should recommend `qbeat` as the default.
 - Interactive update checks should be low-noise.
   Cache the latest-version lookup and only prompt in an interactive terminal.
+  If self-update runs, install the exact resolved npm version, not `@latest`.
   If `npm view` fails during an attempted foreground update check, emit a concise stderr diagnostic.
+  Reusable design notes and rollout pitfalls live in
+  [`docs/self-update-pattern.md`](docs/self-update-pattern.md).
 - Foreground commands should provide `-h`/`--help` output with concrete examples,
   and common failure or empty-state paths should point to the next useful command.
 - Releases follow semver.

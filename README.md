@@ -79,9 +79,10 @@ Remove the `launchd` job and all quota-beat-owned `pmset` wake entries. Does **n
 ### Automatic update prompt
 
 When you run `qbeat` in an interactive terminal, it may check npm for a newer published version about once per day.
-If one is available, `qbeat` offers to run `npm install -g @yesongh/quota-beat@latest` for you.
+If one is available, `qbeat` offers to run `npm install -g @yesongh/quota-beat@<resolved-version>` for you.
 `qbeat --version` only prints the installed version and does not perform this check.
 The background scheduled path never performs update checks or prompts.
+Implementation notes and rollout pitfalls are documented in [`docs/self-update-pattern.md`](docs/self-update-pattern.md).
 
 ## How It Works
 

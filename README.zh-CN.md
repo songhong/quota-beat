@@ -79,9 +79,10 @@ qbeat status
 ### 自动更新提示
 
 当你在交互式终端里运行 `qbeat` 时，它会大约每天检查一次 npm 上是否有更新版本。
-如果发现新版本，`qbeat` 会提示你是否执行 `npm install -g @yesongh/quota-beat@latest`。
+如果发现新版本，`qbeat` 会提示你是否执行 `npm install -g @yesongh/quota-beat@<resolved-version>`。
 `qbeat --version` 只会输出当前安装版本，不会执行这一步检查。
 后台定时路径永远不会执行更新检查，也不会弹出提示。
+实现说明和这次发布中遇到的问题见 [`docs/self-update-pattern.md`](docs/self-update-pattern.md)。
 
 ## 工作原理
 
