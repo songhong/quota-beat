@@ -7,7 +7,7 @@ This document is the canonical release procedure for publishing `@yesongh/quota-
 - Use this SOP only when you are intentionally publishing a new npm release.
 - Do not bump `package.json` version for docs-only or draft changes by default.
 - Only bump the version when the maintainer explicitly decides to publish.
-- Publishing is performed by GitHub Actions via npm trusted publishing, not by running `npm publish` manually on a maintainer laptop.
+- After the package already exists on npm, publishing is performed by GitHub Actions via npm trusted publishing, not by running `npm publish` manually on a maintainer laptop.
 
 ## Semver Policy
 
@@ -39,10 +39,28 @@ Configure npm trusted publishing before relying on the workflow:
    - Organization or user: `yesongh`
    - Repository: `quota-beat`
    - Workflow filename: `publish.yml`
-3. After the first successful trusted publish, set package publishing access to "Require two-factor authentication and disallow tokens".
-4. Do not keep a long-lived npm publish token in GitHub Actions secrets for this repo.
+3. If this is the first-ever release of the package and npm does not have the package record yet, publish it manually once from a maintainer machine to bootstrap the package on npm:
+
+```bash
+npm publish --access public --otp=<code>
+```
+
+4. After that initial manual publish succeeds, use GitHub Actions trusted publishing for subsequent releases.
+5. After the first successful trusted publish, set package publishing access to "Require two-factor authentication and disallow tokens".
+6. Do not keep a long-lived npm publish token in GitHub Actions secrets for this repo.
 
 ## Release Steps
+
+### 0. Check whether this is the first npm release
+
+- If `npm view @yesongh/quota-beat version` returns a published version, follow the normal GitHub Actions flow below.
+- If the package has never been published to npm, do a one-time manual bootstrap publish first:
+
+```bash
+npm publish --access public --otp=<code>
+```
+
+- Only use that manual path for the initial package creation on npm. After that, return to the normal tag-driven GitHub Actions release flow.
 
 ### 1. Confirm the release scope
 

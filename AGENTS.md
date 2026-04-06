@@ -97,6 +97,9 @@ The canonical npm publish procedure lives in [`docs/npm-publish-sop.md`](docs/np
   Only update the version when a maintainer explicitly asks to publish a release.
 - When publishing, prefer `npm version patch|minor|major` from a clean git tree
   so the npm release maps to a dedicated git commit and git tag.
+- If the package has never been published to npm before, bootstrap it with one
+  manual `npm publish --access public --otp=<code>` first, then use the normal
+  tag-driven GitHub Actions flow for later releases.
 - npm releases are published by GitHub Actions trusted publishing from
   [`.github/workflows/publish.yml`](.github/workflows/publish.yml) when a matching `v*` tag is pushed.
 
