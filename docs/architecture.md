@@ -4,6 +4,8 @@ This document expands on [`AGENTS.md`](../AGENTS.md). `AGENTS.md` remains the ca
 
 ## Execution Flow
 
+Before any operational command (`install`, `status`, `kick`, `uninstall`, or `run`) proceeds, the CLI checks `process.platform` and exits with a clean macOS-only error on non-`darwin` platforms. Root help and command help remain available everywhere.
+
 ### `install [--time HH:MM]`
 
 1. Parse and validate the requested time.

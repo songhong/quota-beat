@@ -33,6 +33,8 @@ import {
 } from './scheduler.mjs';
 import { maybeSelfUpdate } from './update.mjs';
 
+const SUPPORTED_PLATFORM = 'darwin';
+
 function parseCommandArgs(command, args, options = {}) {
   try {
     return parseArgs({
@@ -120,6 +122,16 @@ function rollbackFailedInstall(previousInstall, previousWakeTime) {
   }
 
   return errors;
+}
+
+function assertSupportedPlatform(command) {
+  if (process.platform === SUPPORTED_PLATFORM) {
+    return;
+  }
+
+  throw new Error(
+    `quota-beat supports macOS only. \`${command}\` is unavailable on ${process.platform} because quota-beat depends on launchd and pmset.`
+  );
 }
 
 async function runClaudeKick({ scheduled = false } = {}) {
@@ -298,6 +310,10 @@ export async function run(args) {
     if (HELP_COMMANDS.has(command) && (rest.includes('-h') || rest.includes('--help'))) {
       printCommandHelp(command);
       return;
+    }
+
+    if (HELP_COMMANDS.has(command)) {
+      assertSupportedPlatform(command);
     }
 
     if (await maybeSelfUpdate(command)) {

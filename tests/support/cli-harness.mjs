@@ -257,3 +257,12 @@ export function createGetuidPatch(sandbox, uid) {
   writeFileSync(patchPath, `process.getuid = () => ${JSON.stringify(uid)};`);
   return patchPath;
 }
+
+export function createPlatformPatch(sandbox, platform) {
+  const patchPath = join(sandbox.root, `platform-${platform}.cjs`);
+  writeFileSync(
+    patchPath,
+    `Object.defineProperty(process, 'platform', { value: ${JSON.stringify(platform)} });`
+  );
+  return patchPath;
+}

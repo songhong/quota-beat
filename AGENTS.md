@@ -42,6 +42,7 @@ The canonical npm publish procedure lives in [`docs/npm-publish-sop.md`](docs/np
 ## Non-Negotiable Invariants
 
 - macOS only. The tool depends on `launchd` and `pmset`.
+- Foreground commands and the internal `run` command must fail fast with a clean error on non-macOS platforms before any scheduling or update-check work starts.
 - Time format is strict `HH:MM` in 24-hour format.
 - `install` is an overwrite operation. Re-running it replaces the configured time.
 - `install` must not leave a partial quota-beat state behind.

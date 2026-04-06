@@ -5,6 +5,7 @@ import {
   createCliSandbox,
   createDnsPatch,
   createGetuidPatch,
+  createPlatformPatch,
   readJson,
   readLines,
   runCli,
@@ -33,6 +34,20 @@ describe('qbeat CLI', () => {
     assert.match(stdout, /--time HH:MM\s+Daily kick time in 24-hour format \(default: 07:00\)/);
     assert.match(stdout, /install overwrites the existing qbeat schedule\./);
     assert.match(stdout, /Run qbeat as your normal user\. It will use sudo only for pmset\./);
+  });
+
+  it('still shows help on unsupported platforms', async t => {
+    const sandbox = createCliSandbox(t);
+    const platformPatch = createPlatformPatch(sandbox, 'win32');
+
+    const { stdout } = await runCli(sandbox, ['--help'], {
+      env: {
+        NODE_OPTIONS: `--require ${platformPatch}`,
+      },
+    });
+
+    assert.match(stdout, /Usage: qbeat <command> \[options\]/);
+    assert.match(stdout, /macOS/);
   });
 
   it('rejects invalid install time with a clean error', async t => {
@@ -170,6 +185,32 @@ describe('qbeat CLI', () => {
         return true;
       }
     );
+  });
+
+  it('fails fast with a clean error on unsupported platforms', async t => {
+    const sandbox = createCliSandbox(t);
+    const platformPatch = createPlatformPatch(sandbox, 'win32');
+
+    await assert.rejects(
+      runCli(sandbox, ['status'], {
+        env: {
+          NODE_OPTIONS: `--require ${platformPatch}`,
+          QUOTA_BEAT_FORCE_UPDATE_CHECK: '1',
+          QUOTA_BEAT_AUTO_UPDATE: 'yes',
+          QUOTA_BEAT_NPM_VIEW_VERSION: '0.2.0',
+        },
+      }),
+      err => {
+        assert.equal(err.code, 1);
+        assert.match(
+          err.stderr,
+          /quota-beat supports macOS only\. `status` is unavailable on win32 because quota-beat depends on launchd and pmset\./
+        );
+        return true;
+      }
+    );
+
+    assert.deepEqual(readLines(sandbox.npmLogPath), []);
   });
 
   it('offers a self-update for interactive commands and exits after updating', async t => {
