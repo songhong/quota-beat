@@ -1,6 +1,6 @@
 {
   "name": "quota-beat",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "macOS-only CLI to kick Claude Code at a fixed time every day",
   "type": "module",
   "files": [
