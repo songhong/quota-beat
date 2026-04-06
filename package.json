@@ -1,0 +1,41 @@
+{
+  "name": "quota-beat",
+  "version": "0.1.0",
+  "description": "Kick Claude Code at a fixed time every day",
+  "type": "module",
+  "files": [
+    "bin/",
+    "src/",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ],
+  "bin": {
+    "quotabeat": "./bin/quotabeat.mjs",
+    "qbeat": "./bin/qbeat.mjs",
+    "qb": "./bin/qb.mjs"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "keywords": [
+    "claude",
+    "cli",
+    "launchd",
+    "macos",
+    "pmset",
+    "scheduler"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/songhong/quota-beat.git"
+  },
+  "homepage": "https://github.com/songhong/quota-beat#readme",
+  "bugs": {
+    "url": "https://github.com/songhong/quota-beat/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT"
+}
