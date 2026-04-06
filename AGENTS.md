@@ -11,6 +11,9 @@ This file is the canonical engineering source of truth for this repository.
 `quota-beat` is a macOS-only CLI that kicks Claude Code at a fixed daily time.
 Interactive foreground commands may also check for a newer published npm version and offer a self-update.
 
+The npm package name is `@yesongh/quota-beat`.
+Installed CLI command names remain `qbeat` and `quotabeat`.
+
 Public commands:
 - `qbeat -v`
 - `qbeat --version`
@@ -79,6 +82,7 @@ The canonical npm publish procedure lives in [`docs/npm-publish-sop.md`](docs/np
 - If the user's Node or Claude CLI installation path changes after install, they must run `qbeat install --time HH:MM` again so the plist captures the new paths.
 - `uninstall` removes launchd and quota-beat-owned pmset wake entries. It does not uninstall the globally installed binary.
 - npm installs two command names: `qbeat` and `quotabeat`.
+  Install and upgrade via the scoped package name `@yesongh/quota-beat`.
   Documentation and help text should recommend `qbeat` as the default.
 - Interactive update checks should be low-noise.
   Cache the latest-version lookup and only prompt in an interactive terminal.

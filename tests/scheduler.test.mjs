@@ -23,13 +23,13 @@ describe('scheduler helpers', () => {
     const plist = buildPlist({
       time: '08:30',
       nodePath: '/opt/homebrew/bin/node',
-      scriptPath: '/usr/local/lib/node_modules/quota-beat/bin/qbeat.mjs',
+      scriptPath: '/usr/local/lib/node_modules/@yesongh/quota-beat/bin/qbeat.mjs',
       logDir: '/tmp/quota-beat-logs',
       envPath: '/opt/homebrew/bin',
     });
 
     assert.match(plist, /<string>\/opt\/homebrew\/bin\/node<\/string>/);
-    assert.match(plist, /<string>\/usr\/local\/lib\/node_modules\/quota-beat\/bin\/qbeat\.mjs<\/string>/);
+    assert.match(plist, /<string>\/usr\/local\/lib\/node_modules\/@yesongh\/quota-beat\/bin\/qbeat\.mjs<\/string>/);
     assert.match(plist, /<key>PATH<\/key>/);
     assert.doesNotMatch(plist, /<key>RunAtLoad<\/key>/);
     assert.match(plist, /\/opt\/homebrew\/bin:\/usr\/bin:\/bin:\/usr\/sbin:\/sbin/);

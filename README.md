@@ -26,7 +26,7 @@ Without this anchor, the cycle drifts based on whenever you happen to start. `qu
 ## Install
 
 ```bash
-npm install -g quota-beat
+npm install -g @yesongh/quota-beat
 ```
 
 This package installs two command aliases: `qbeat` (recommended) and `quotabeat`.
@@ -34,7 +34,7 @@ This package installs two command aliases: `qbeat` (recommended) and `quotabeat`
 ## Upgrade
 
 ```bash
-npm install -g quota-beat@latest
+npm install -g @yesongh/quota-beat@latest
 ```
 
 ## Quick Start
@@ -79,7 +79,7 @@ Remove the `launchd` job and all quota-beat-owned `pmset` wake entries. Does **n
 ### Automatic update prompt
 
 When you run `qbeat` in an interactive terminal, it may check npm for a newer published version about once per day.
-If one is available, `qbeat` offers to run `npm install -g quota-beat@latest` for you.
+If one is available, `qbeat` offers to run `npm install -g @yesongh/quota-beat@latest` for you.
 `qbeat --version` only prints the installed version and does not perform this check.
 The background scheduled path never performs update checks or prompts.
 
@@ -146,7 +146,7 @@ This file captures whether the real Claude invocation succeeded, its exit code, 
 Run `qbeat install --time HH:MM` again.
 
 **Upgrade to the latest published build**
-Run `npm install -g quota-beat@latest`.
+Run `npm install -g @yesongh/quota-beat@latest`.
 
 **Node path changed (e.g. after nvm switch)**
 Re-run `qbeat install --time HH:MM` to capture the new `process.execPath`.

@@ -33,7 +33,7 @@ Before any operational command (`install`, `status`, `kick`, `uninstall`, or `ru
 
 1. Only foreground interactive commands (`install`, `status`, `kick`, `uninstall`) may check for updates.
 2. Look up the latest published version with npm and cache the result under `~/.quota-beat`.
-3. If a newer version exists, prompt the user before running `npm install -g quota-beat@latest`.
+3. If a newer version exists, prompt the user before running `npm install -g @yesongh/quota-beat@latest`.
 4. Exit after a successful self-update so the user can re-run the command under the new version.
 5. Never perform this flow in `run`.
 

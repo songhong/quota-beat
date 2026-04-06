@@ -1,6 +1,6 @@
 # npm Publish SOP
 
-This document is the canonical release procedure for publishing `quota-beat` to npm.
+This document is the canonical release procedure for publishing `@yesongh/quota-beat` to npm.
 
 ## Scope
 
@@ -34,9 +34,9 @@ npm test
 
 Configure npm trusted publishing before relying on the workflow:
 
-1. On npmjs.com, open the `quota-beat` package settings and add a Trusted Publisher for GitHub Actions.
+1. On npmjs.com, open the `@yesongh/quota-beat` package settings and add a Trusted Publisher for GitHub Actions.
 2. Use:
-   - Organization or user: `songhong`
+   - Organization or user: `yesongh`
    - Repository: `quota-beat`
    - Workflow filename: `publish.yml`
 3. After the first successful trusted publish, set package publishing access to "Require two-factor authentication and disallow tokens".
@@ -91,7 +91,7 @@ Pushing the tag triggers [`.github/workflows/publish.yml`](../.github/workflows/
 
 ### 4a. Retry the same version only when the package was not published
 
-- If the GitHub Actions run fails and `npm view quota-beat version` still shows the previous release, it is acceptable to keep the same version and re-push the same tag after fixing the workflow or tests.
+- If the GitHub Actions run fails and `npm view @yesongh/quota-beat version` still shows the previous release, it is acceptable to keep the same version and re-push the same tag after fixing the workflow or tests.
 - In that recovery path, move the existing tag to the new fixed commit and force-push the tag:
 
 ```bash
@@ -104,13 +104,13 @@ git push --force origin refs/tags/v0.1.2
 ### 5. Verify the published result
 
 ```bash
-npm view quota-beat version
+npm view @yesongh/quota-beat version
 ```
 
 Optional install check:
 
 ```bash
-npm install -g quota-beat@latest
+npm install -g @yesongh/quota-beat@latest
 qbeat --help
 ```
 
@@ -133,5 +133,5 @@ git status --short
 npm test
 npm version patch
 git push origin HEAD --follow-tags
-npm view quota-beat version
+npm view @yesongh/quota-beat version
 ```

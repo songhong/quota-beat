@@ -34,7 +34,7 @@ Expected:
 If the machine is not clean, remove the old install first:
 
 ```bash
-npm uninstall -g quota-beat
+npm uninstall -g @yesongh/quota-beat
 rm -f ~/Library/LaunchAgents/com.quota-beat.kick.plist
 sudo pmset repeat cancel wakeorpoweron
 ```
@@ -169,4 +169,3 @@ Expected:
 
 - the launch agent is removed
 - the quota-beat-owned repeating wake is gone
-

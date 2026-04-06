@@ -11,7 +11,7 @@ import {
   runCli,
   writeFile,
 } from './support/cli-harness.mjs';
-import { PACKAGE_VERSION } from '../src/meta.mjs';
+import { PACKAGE_NAME, PACKAGE_VERSION } from '../src/meta.mjs';
 
 describe('qbeat CLI', () => {
   it('shows root help with command summary and examples', async t => {
@@ -260,12 +260,12 @@ describe('qbeat CLI', () => {
       },
     });
 
-    assert.match(stdout, /Updating quota-beat to 0.2.0/);
+    assert.match(stdout, new RegExp(`Updating ${PACKAGE_NAME.replace('/', '\\/')} to 0\\.2\\.0`));
     assert.match(stdout, /Update completed\. Re-run qbeat to use 0.2.0\./);
     assert.doesNotMatch(stdout, /Not installed\./);
 
     const npmCalls = readLines(sandbox.npmLogPath).map(line => JSON.parse(line));
-    assert.deepEqual(npmCalls, [['install', '-g', 'quota-beat@latest']]);
+    assert.deepEqual(npmCalls, [['install', '-g', `${PACKAGE_NAME}@latest`]]);
   });
 
   it('continues the requested command when the update is declined', async t => {
@@ -293,7 +293,10 @@ describe('qbeat CLI', () => {
     });
 
     assert.match(stdout, /Not installed\./);
-    assert.match(stderr, /Update check failed: npm view quota-beat version --json failed/);
+    assert.match(
+      stderr,
+      new RegExp(`Update check failed: npm view ${PACKAGE_NAME.replace('/', '\\/')} version --json failed`)
+    );
     assert.match(stderr, /status=1/);
   });
 
