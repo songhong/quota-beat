@@ -210,7 +210,8 @@ export function createCliSandbox(t, options = {}) {
     claudeInvocationLogPath: join(homeDir, '.quota-beat', 'logs', 'claude.jsonl'),
     plistPath: join(homeDir, 'Library', 'LaunchAgents', plistFileName),
     env(extraEnv = {}) {
-      const inheritedNodeOptions = extraEnv.NODE_OPTIONS?.trim();
+      const { NODE_OPTIONS: extraNodeOptions, ...restEnv } = extraEnv;
+      const inheritedNodeOptions = extraNodeOptions?.trim();
       const nodeOptions = [`--require ${platformPatchPath}`];
       if (inheritedNodeOptions) {
         nodeOptions.push(inheritedNodeOptions);
@@ -225,7 +226,7 @@ export function createCliSandbox(t, options = {}) {
         QUOTA_BEAT_LAUNCHCTL_LOG: launchctlLogPath,
         QUOTA_BEAT_CLAUDE_LOG: claudeLogPath,
         QUOTA_BEAT_NPM_LOG: npmLogPath,
-        ...extraEnv,
+        ...restEnv,
       };
     },
   };
