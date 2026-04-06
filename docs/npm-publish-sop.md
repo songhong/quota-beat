@@ -89,6 +89,18 @@ Pushing the tag triggers [`.github/workflows/publish.yml`](../.github/workflows/
 - Confirm the `Publish Package` workflow succeeded for the pushed tag.
 - If the workflow fails before npm accepts the release, fix the issue and re-run the workflow or push a corrected replacement tag as appropriate.
 
+### 4a. Retry the same version only when the package was not published
+
+- If the GitHub Actions run fails and `npm view quota-beat version` still shows the previous release, it is acceptable to keep the same version and re-push the same tag after fixing the workflow or tests.
+- In that recovery path, move the existing tag to the new fixed commit and force-push the tag:
+
+```bash
+git tag -fa v0.1.2 -m "v0.1.2"
+git push --force origin refs/tags/v0.1.2
+```
+
+- Do not reuse a published version. If npm already accepted the release, the next attempt must use a new semver version.
+
 ### 5. Verify the published result
 
 ```bash
@@ -101,6 +113,13 @@ Optional install check:
 npm install -g quota-beat@latest
 qbeat --help
 ```
+
+## CI Notes
+
+- The publish workflow currently runs on `ubuntu-latest`, not macOS.
+- CLI tests that exercise install, status, kick, uninstall, or the internal `run` path must not depend on the runner's real `process.platform`.
+- The test harness in [`tests/support/cli-harness.mjs`](../tests/support/cli-harness.mjs) is responsible for simulating `darwin` by default and for preserving any extra `NODE_OPTIONS` required by individual tests.
+- If a GitHub Actions failure says a public CLI command is unavailable on Linux, treat that as a test harness regression first, not as a release-only issue.
 
 ## Post-Release
 
