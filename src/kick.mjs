@@ -53,6 +53,10 @@ function summarizeOutput(value) {
   return `${normalized.slice(0, MAX_LOG_PREVIEW)}...`;
 }
 
+function failurePreview(stdout, stderr) {
+  return summarizeOutput(stderr) || summarizeOutput(stdout);
+}
+
 function writeClaudeAttemptLog(entry) {
   const logPath = claudeInvocationLogPath();
   mkdirSync(dirname(logPath), { recursive: true });
@@ -108,9 +112,10 @@ function spawnClaude(timeoutMs = 60000) {
     child.on('close', (code, signal) => {
       if (code === 0) resolve({ stdout, stderr, exitCode: code, signal });
       else {
+        const detailText = failurePreview(stdout, stderr);
         const detail = signal
-          ? `claude exited with signal ${signal}: ${stderr}`
-          : `claude exited with code ${code}: ${stderr}`;
+          ? `claude exited with signal ${signal}: ${detailText}`
+          : `claude exited with code ${code}: ${detailText}`;
         const err = new Error(detail);
         err.exitCode = code;
         err.signal = signal;
