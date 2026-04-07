@@ -52,7 +52,7 @@ The reusable design notes and rollout pitfalls for this flow live in
 ### `run --time HH:MM`
 
 1. Validate the required scheduled time passed by launchd.
-2. Wait for network readiness, then add a random 0 to 5 minute delay before the first Claude invocation.
+2. Wait for network readiness, then add a random 0 to 3 minute delay before the first Claude invocation.
 3. Attempt the same Claude kick flow as `kick`.
 4. Emit failures to stderr so launchd logs remain useful.
 5. Preserve the per-attempt Claude JSONL log for deeper inspection, including delay metadata.

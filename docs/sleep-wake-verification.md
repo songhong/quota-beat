@@ -9,6 +9,18 @@ This checklist is the shortest end-to-end validation flow for verifying that `qu
 
 Use this when validating from a clean machine state or after packaging changes.
 
+For a faster post-run verdict, use [`docs/check-sleep-wake.mjs`](./check-sleep-wake.mjs).
+It prints the latest or requested day's timeline as:
+
+- last sleep
+- qbeat expected wake
+- observed wake schedule
+- first Claude attempt
+- final Claude result
+- next sleep
+
+It exits `0` only when the wake schedule is observed and the scheduled Claude kick succeeds.
+
 ## 0. Pick A Near-Future Test Time
 
 Choose a test time 8 to 10 minutes from now.
@@ -118,7 +130,7 @@ Timeline:
 - `HH:MM - 2 minutes`: the Mac should wake because of `pmset repeat wakeorpoweron`
 - `HH:MM`: `launchd` should start `qbeat run --time HH:MM`
 - up to 30 seconds later: the process should wait for network
-- after network is ready: the scheduled run may delay Claude launch by a random `0` to `5` minutes
+- after network is ready: the scheduled run may delay Claude launch by a random `0` to `3` minutes
 - after that delay: Claude should be invoked once, with at most one retry after a short random delay if the first attempt fails
 
 Important:
@@ -133,18 +145,25 @@ Important:
 qbeat status
 pmset -g sched
 launchctl print gui/$(id -u)/com.quota-beat.kick
-tail -n 50 ~/.quota-beat/logs/launchd.stdout.log
-tail -n 50 ~/.quota-beat/logs/launchd.stderr.log
-tail -n 10 ~/.quota-beat/logs/claude.jsonl
+node docs/check-sleep-wake.mjs
 ```
 
 Expected:
 
 - `qbeat status` still reports the installed time
 - `pmset -g sched` still shows the repeating wake rule
-- `launchd.stdout.log` shows the scheduled run flow, including network check and Claude launch
-- `launchd.stderr.log` is empty or contains only actionable failure output
-- `claude.jsonl` contains a fresh JSON Lines record for the scheduled run
+- the checker prints a timeline covering sleep, expected wake, observed wake, Claude kick, and the next sleep boundary when present
+- the checker exits `0`
+- the final verdict says `Wake schedule observed: yes`
+- the final verdict says `Scheduled Claude success: yes`
+
+If the checker fails or you need raw evidence, inspect the underlying logs:
+
+```bash
+tail -n 50 ~/.quota-beat/logs/launchd.stdout.log
+tail -n 50 ~/.quota-beat/logs/launchd.stderr.log
+tail -n 10 ~/.quota-beat/logs/claude.jsonl
+```
 
 For a successful scheduled run, the latest `claude.jsonl` entry should usually include:
 
@@ -156,6 +175,12 @@ If the first Claude invocation fails, the latest entries may instead show:
 
 - the first record with `"willRetry": true`
 - a second record for attempt `2`
+
+The checker also supports inspecting a specific local day:
+
+```bash
+node docs/check-sleep-wake.mjs YYYY-MM-DD
+```
 
 ## 9. Clean Up After The Test
 
