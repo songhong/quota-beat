@@ -21,6 +21,15 @@ It prints the latest or requested day's timeline as:
 
 It exits `0` only when the wake schedule is observed and the scheduled Claude kick succeeds.
 
+When you need a raw evidence chain instead of only a pass/fail verdict, collect and compare:
+
+- the configured `pmset` wake time from `pmset -g sched`
+- the installed `launchd` run time from `launchctl print`
+- the last sleep and wake records from `pmset -g log`
+- the scheduled Claude attempt and outcome from `~/.quota-beat/logs/claude.jsonl`
+
+The evidence chain is complete only when those timestamps line up.
+
 ## 0. Pick A Near-Future Test Time
 
 Choose a test time 8 to 10 minutes from now.
@@ -123,6 +132,12 @@ Sleep the Mac using the Apple menu or:
 osascript -e 'tell application "System Events" to sleep'
 ```
 
+You can also force immediate sleep with:
+
+```bash
+sudo pmset sleepnow
+```
+
 ## 7. Wait For The Trigger Window
 
 Timeline:
@@ -182,7 +197,140 @@ The checker also supports inspecting a specific local day:
 node docs/check-sleep-wake.mjs YYYY-MM-DD
 ```
 
-## 9. Clean Up After The Test
+## 9. Build The Evidence Chain
+
+Use this section when you need to prove exactly when the Mac slept, when it woke, when `quota-beat` ran, and whether the Mac went back to sleep afterward.
+
+### 9.1 Confirm The Installed Schedule
+
+```bash
+qbeat status
+pmset -g sched
+launchctl print gui/$(id -u)/com.quota-beat.kick
+```
+
+Record these three facts:
+
+- the installed `qbeat` time from `qbeat status`
+- the repeating wake time from `pmset -g sched`
+- the `run --time HH:MM` schedule from `launchctl print`
+
+Expected relationship:
+
+- `launchd` runs at `HH:MM`
+- `pmset` wakes the Mac at `HH:MM - 2 minutes`
+
+### 9.2 Capture The Last Sleep Before The Scheduled Wake
+
+The checker already prints this, but for raw evidence use:
+
+```bash
+pmset -g log | rg 'Entering Sleep state'
+```
+
+Take the latest `Entering Sleep state` record that happened before the scheduled wake window.
+
+Example shape:
+
+```text
+2026-04-07 20:19:03 +0800 Sleep Entering Sleep state due to 'Sleep Service Back to Sleep': ...
+```
+
+### 9.3 Capture The Observed Wake Around `HH:MM - 2 Minutes`
+
+Start with the full local day:
+
+```bash
+pmset -g log | rg 'YYYY-MM-DD .*?(com.apple.powermanagement.wakeschedule|Display is turned on|Display is turned off)'
+```
+
+Then narrow it to the expected wake minute by editing the date and time prefix directly.
+
+Example for an expected wake near `06:58` on `2026-04-09`:
+
+```bash
+pmset -g log | rg '2026-04-09 06:(57|58|59):.*(com.apple.powermanagement.wakeschedule|Display is turned on|Display is turned off)'
+```
+
+Expected evidence near the wake time:
+
+- a `Created UserIsActive "com.apple.powermanagement.wakeschedule"` line
+- a `Display is turned on` line at or near the same second
+- optionally a `Display is turned off` line shortly after if the display went dark again
+
+Example shape:
+
+```text
+2026-04-09 06:58:00 +0800 Assertions   PID 347(powerd) Created UserIsActive "com.apple.powermanagement.wakeschedule" ...
+2026-04-09 06:58:00 +0800 Notification Display is turned on
+2026-04-09 06:58:12 +0800 Notification Display is turned off
+```
+
+Interpretation:
+
+- this proves macOS woke on a scheduled power event
+- if the observed wake matches the `pmset -g sched` repeating wake configured by `quota-beat`, that wake is attributable to the installed `quota-beat` schedule
+
+### 9.4 Capture The Scheduled Claude Attempt
+
+Inspect the latest scheduled run in the additive Claude log:
+
+```bash
+nl -ba ~/.quota-beat/logs/claude.jsonl | tail -n 10
+tail -n 50 ~/.quota-beat/logs/launchd.stdout.log
+tail -n 50 ~/.quota-beat/logs/launchd.stderr.log
+```
+
+For a successful scheduled run, the latest scheduled `claude.jsonl` record should usually include:
+
+- `"attempt": 1`
+- `"success": true`
+- `"preLaunchDelayMs": ...`
+
+The `startedAt` and `finishedAt` timestamps are UTC in the JSON log. Convert them to local time when comparing them with `pmset -g log`.
+
+Interpretation:
+
+- `preLaunchDelayMs` explains why the first Claude attempt may happen a short time after `HH:MM`
+- `launchd.stdout.log` should show `Checking network...`, then a delay message, then `Scheduled kick completed.`
+- if attempt `1` fails and `willRetry` is true, the second record is still part of the same scheduled run
+
+### 9.5 Check Whether The Mac Slept Again After The Kick
+
+Use:
+
+```bash
+pmset -g log | rg '^YYYY-MM-DD .*Entering Sleep state'
+```
+
+Replace `YYYY-MM-DD` with the local date of the scheduled run, then compare the matching sleep records with the Claude `finishedAt` timestamp.
+
+Interpretation:
+
+- if a later `Entering Sleep state` record exists, that is the next sleep after the scheduled Claude kick
+- if no later sleep record exists yet, record that the next sleep was not observed in the available logs
+- not finding a later sleep does not invalidate the wake-and-run verification; it only means the post-run sleep boundary was not captured yet
+
+### 9.6 Write The Final Timeline
+
+For a complete evidence chain, write the final timeline in this order:
+
+1. last sleep before the wake window
+2. expected wake from `pmset -g sched`
+3. observed wake from `pmset -g log`
+4. expected `launchd` run time from `launchctl print`
+5. first Claude attempt from `claude.jsonl`
+6. final Claude result from `claude.jsonl`
+7. next sleep after the kick, or `not found`
+
+Only call the test fully proven when:
+
+- the installed `launchd` and `pmset` times match the expected `HH:MM` and `HH:MM - 2 minutes`
+- the observed wake matches the scheduled wake window
+- the scheduled Claude attempt happened after that wake
+- the Claude attempt log shows success, or a clearly attributable failure/retry chain
+
+## 10. Clean Up After The Test
 
 ```bash
 qbeat uninstall
