@@ -284,7 +284,7 @@ describe('qbeat CLI', () => {
           NODE_OPTIONS: `--require ${platformPatch}`,
           QUOTA_BEAT_FORCE_UPDATE_CHECK: '1',
           QUOTA_BEAT_AUTO_UPDATE: 'yes',
-          QUOTA_BEAT_NPM_VIEW_VERSION: '0.2.0',
+          QUOTA_BEAT_NPM_VIEW_VERSION: '99.0.0',
         },
       }),
       err => {
@@ -307,16 +307,16 @@ describe('qbeat CLI', () => {
       env: {
         QUOTA_BEAT_FORCE_UPDATE_CHECK: '1',
         QUOTA_BEAT_AUTO_UPDATE: 'yes',
-        QUOTA_BEAT_NPM_VIEW_VERSION: '0.2.0',
+        QUOTA_BEAT_NPM_VIEW_VERSION: '99.0.0',
       },
     });
 
-    assert.match(stdout, new RegExp(`Updating ${PACKAGE_NAME.replace('/', '\\/')} to 0\\.2\\.0`));
-    assert.match(stdout, /Update completed\. Re-run qbeat to use 0.2.0\./);
+    assert.match(stdout, new RegExp(`Updating ${PACKAGE_NAME.replace('/', '\\/')} to 99\\.0\\.0`));
+    assert.match(stdout, /Update completed\. Re-run qbeat to use 99.0.0\./);
     assert.doesNotMatch(stdout, /Not installed\./);
 
     const npmCalls = readLines(sandbox.npmLogPath).map(line => JSON.parse(line));
-    assert.deepEqual(npmCalls, [['install', '-g', `${PACKAGE_NAME}@0.2.0`]]);
+    assert.deepEqual(npmCalls, [['install', '-g', `${PACKAGE_NAME}@99.0.0`]]);
   });
 
   it('continues the requested command when the update is declined', async t => {
@@ -326,7 +326,7 @@ describe('qbeat CLI', () => {
       env: {
         QUOTA_BEAT_FORCE_UPDATE_CHECK: '1',
         QUOTA_BEAT_AUTO_UPDATE: 'no',
-        QUOTA_BEAT_NPM_VIEW_VERSION: '0.2.0',
+        QUOTA_BEAT_NPM_VIEW_VERSION: '99.0.0',
       },
     });
 
@@ -515,7 +515,7 @@ describe('qbeat CLI', () => {
         NODE_OPTIONS: `--require ${dnsPatch}`,
         QUOTA_BEAT_FORCE_UPDATE_CHECK: '1',
         QUOTA_BEAT_AUTO_UPDATE: 'yes',
-        QUOTA_BEAT_NPM_VIEW_VERSION: '0.2.0',
+        QUOTA_BEAT_NPM_VIEW_VERSION: '99.0.0',
         QUOTA_BEAT_TEST_PRELAUNCH_DELAY_MS: '0',
         QUOTA_BEAT_TEST_SKIP_SLEEP: '1',
       },
