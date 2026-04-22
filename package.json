@@ -27,14 +27,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/songhong/quota-beat.git"
+    "url": "git+https://github.com/yesongh/quota-beat.git"
   },
   "publishConfig": {
     "access": "public"
   },
-  "homepage": "https://github.com/songhong/quota-beat#readme",
+  "homepage": "https://github.com/yesongh/quota-beat#readme",
   "bugs": {
-    "url": "https://github.com/songhong/quota-beat/issues"
+    "url": "https://github.com/yesongh/quota-beat/issues"
   },
   "engines": {
     "node": ">=18.0.0"
