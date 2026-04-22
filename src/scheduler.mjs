@@ -19,14 +19,42 @@ export function normalizeTime(value) {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
+function addMinutesToTime(h, m, deltaMinutes) {
+  const total = (h * 60 + m + deltaMinutes) % (24 * 60);
+  return { hours: Math.floor(total / 60), minutes: total % 60 };
+}
+
+function hhmm({ hours, minutes }) {
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+function computeKickEntries(time, jitterMinutes) {
+  const normalized = normalizeTime(time);
+  const [h, m] = normalized.split(':').map(Number);
+  return [
+    { hours: h, minutes: m },
+    addMinutesToTime(h, m, 5 * 60 + jitterMinutes),
+    addMinutesToTime(h, m, 10 * 60 + 2 * jitterMinutes),
+  ];
+}
+
+export function computeKickTimes(time, jitterMinutes) {
+  return computeKickEntries(time, jitterMinutes).map(hhmm);
+}
+
 export function plistPath() {
   return join(homedir(), 'Library', 'LaunchAgents', `${PLIST_LABEL}.plist`);
 }
 
-export function buildPlist({ time, nodePath, scriptPath, logDir, envPath }) {
+export function buildPlist({ time, nodePath, scriptPath, logDir, envPath, jitterMinutes = 1 }) {
   const normalized = normalizeTime(time);
-  const [hours, minutes] = normalized.split(':').map(Number);
   const pathValue = envPath ? `${envPath}:${DEFAULT_PATH}` : DEFAULT_PATH;
+
+  const kicks = computeKickEntries(time, jitterMinutes);
+
+  const intervals = kicks.map(({ hours, minutes }) =>
+    `  <dict>\n    <key>Hour</key>\n    <integer>${hours}</integer>\n    <key>Minute</key>\n    <integer>${minutes}</integer>\n  </dict>`
+  ).join('\n');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -46,14 +74,13 @@ export function buildPlist({ time, nodePath, scriptPath, logDir, envPath }) {
     <string>run</string>
     <string>--time</string>
     <string>${normalized}</string>
+    <string>--jitter</string>
+    <string>${jitterMinutes}</string>
   </array>
   <key>StartCalendarInterval</key>
-  <dict>
-    <key>Hour</key>
-    <integer>${hours}</integer>
-    <key>Minute</key>
-    <integer>${minutes}</integer>
-  </dict>
+  <array>
+${intervals}
+  </array>
   <key>StandardOutPath</key>
   <string>${logDir}/launchd.stdout.log</string>
   <key>StandardErrorPath</key>
@@ -64,7 +91,7 @@ export function buildPlist({ time, nodePath, scriptPath, logDir, envPath }) {
 
 export function parseScheduledTime(plistContent) {
   const match = plistContent.match(
-    /<key>StartCalendarInterval<\/key>\s*<dict>\s*<key>Hour<\/key>\s*<integer>(\d+)<\/integer>\s*<key>Minute<\/key>\s*<integer>(\d+)<\/integer>/s
+    /<key>StartCalendarInterval<\/key>\s*<array>\s*<dict>\s*<key>Hour<\/key>\s*<integer>(\d+)<\/integer>\s*<key>Minute<\/key>\s*<integer>(\d+)<\/integer>/s
   );
 
   if (!match) {
@@ -74,28 +101,37 @@ export function parseScheduledTime(plistContent) {
   return normalizeTime(`${match[1].padStart(2, '0')}:${match[2].padStart(2, '0')}`);
 }
 
-export function readScheduledTime() {
-  return parseScheduledTime(readFileSync(plistPath(), 'utf-8'));
+export function parseJitterMinutes(plistContent) {
+  const match = plistContent.match(/<string>--jitter<\/string>\s*<string>(\d+)<\/string>/s);
+  return match ? parseInt(match[1], 10) : 1;
 }
 
-export function wakeTimeForKickTime(time) {
-  const normalized = normalizeTime(time);
-  const [hours, minutes] = normalized.split(':').map(Number);
-  const wakeHours = minutes >= 2 ? hours : (hours + 23) % 24;
-  const wakeMinutes = (minutes - 2 + 60) % 60;
-  return `${String(wakeHours).padStart(2, '0')}:${String(wakeMinutes).padStart(2, '0')}:00`;
+export function readInstalledConfig() {
+  const content = readFileSync(plistPath(), 'utf-8');
+  return {
+    time: parseScheduledTime(content),
+    jitterMinutes: parseJitterMinutes(content),
+  };
 }
 
-export function setPmsetRepeatWakeTime(wakeTime) {
-  execFileSync(
-    'sudo',
-    ['pmset', 'repeat', 'wakeorpoweron', 'MTWRFSU', wakeTime],
-    { stdio: 'inherit' }
-  );
+function wakeTimeForHM(h, m) {
+  const wakeH = m >= 1 ? h : (h + 23) % 24;
+  const wakeM = (m - 1 + 60) % 60;
+  return `${String(wakeH).padStart(2, '0')}:${String(wakeM).padStart(2, '0')}:00`;
 }
 
-export function schedulePmsetRepeat(time) {
-  setPmsetRepeatWakeTime(wakeTimeForKickTime(time));
+export function setPmsetRepeatWakeTimes(wakeTimes) {
+  const repeatArgs = [];
+  for (const t of wakeTimes) {
+    repeatArgs.push('wakeorpoweron', 'MTWRFSU', t);
+  }
+  execFileSync('sudo', ['pmset', 'repeat', ...repeatArgs], { stdio: 'inherit' });
+}
+
+export function schedulePmsetRepeat(time, jitterMinutes = 1) {
+  const kicks = computeKickEntries(time, jitterMinutes);
+  const wakeTimes = kicks.map(({ hours, minutes }) => wakeTimeForHM(hours, minutes));
+  setPmsetRepeatWakeTimes(wakeTimes);
 }
 
 export function cancelPmsetRepeat() {
@@ -107,9 +143,9 @@ export function cancelPmsetRepeat() {
 }
 
 export function parsePmsetRepeatOutput(output) {
-  const match = output.match(/wakeorpoweron\s+at\s+(\d{2}:\d{2}:\d{2})/i);
-  if (!match) return null;
-  return match[1];
+  const matches = [...output.matchAll(/wakeorpoweron\s+at\s+(\d{2}:\d{2}:\d{2})/gi)];
+  if (matches.length === 0) return null;
+  return matches.map(m => m[1]);
 }
 
 export function readPmsetRepeat() {

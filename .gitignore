@@ -3,3 +3,4 @@ var/
 iterations/
 .vscode/
 .worktrees/
+.DS_Store

@@ -17,13 +17,13 @@ Installed CLI command names remain `qbeat` and `quotabeat`.
 Public commands:
 - `qbeat -v`
 - `qbeat --version`
-- `qbeat install [--time HH:MM]`
+- `qbeat install [--time HH:MM] [--jitter <minutes>]`
 - `qbeat status`
 - `qbeat kick`
 - `qbeat uninstall`
 
 Internal command:
-- `qbeat run --time HH:MM`
+- `qbeat run --time HH:MM [--jitter <minutes>]`
 
 ## Runtime Architecture
 
@@ -54,7 +54,8 @@ The canonical npm publish procedure lives in [`docs/npm-publish-sop.md`](docs/np
   If launchd registration fails after `pmset` is updated, quota-beat must roll back the wake rule and remove the new plist.
 - `status` uses the installed plist as the only source of truth. There is no state file.
 - `kick` runs Claude immediately and does not schedule the next wake.
-- `run` is launchd-only. It attempts the Claude kick only. After network readiness, it randomizes the first Claude launch by 0 to 3 minutes. Wake scheduling is handled by `pmset repeat` (set once during `install`).
+- `install` schedules 3 kicks per day: at `--time`, `--time + 5h + jitter`, and `--time + 10h + 2×jitter`. `--jitter` sets the max random pre-launch delay per kick in minutes (1–30, default 1). Each pmset wake fires 1 minute before the kick window opens.
+- `run` is launchd-only. It attempts the Claude kick only. After network readiness, it randomizes the Claude launch by 0 to `--jitter` minutes. Wake scheduling is handled by `pmset repeat` (set once during `install`).
 - `run` requires an explicit `--time HH:MM`.
 - Automatic update checks must never run in `run`.
 - User-facing help text and end-user docs must not advertise `run`. Only `install`, `status`, `kick`, and `uninstall` are public subcommands. Root flags `-v`/`--version` are public.

@@ -30,22 +30,26 @@ Run \`${RECOMMENDED_COMMAND} <command> -h\` for command-specific help.`);
 export function printCommandHelp(command) {
   switch (command) {
     case 'install':
-      console.log(`Usage: ${RECOMMENDED_COMMAND} install [--time HH:MM]
+      console.log(`Usage: ${RECOMMENDED_COMMAND} install [--time HH:MM] [--jitter <minutes>]
 
 Register or replace the daily launchd + pmset schedule.
 
 Options:
-  -h, --help        Show this help message
-  --time HH:MM      Daily kick time in 24-hour format (default: ${DEFAULT_INSTALL_TIME})
+  -h, --help           Show this help message
+  --time HH:MM         First daily kick time in 24-hour format (default: ${DEFAULT_INSTALL_TIME})
+  --jitter <minutes>   Max random delay before each kick, 1-30 (default: 1)
 
 Notes:
+  Schedules 3 kicks per day: at --time, +5h, and +10h.
+  Each kick fires after the previous kick's maximum possible window.
   install overwrites the existing ${RECOMMENDED_COMMAND} schedule.
   Run ${RECOMMENDED_COMMAND} as your normal user. It will use sudo only for pmset.
   If your node or claude path changes later, run install again.
   ${RECOMMENDED_COMMAND} is the recommended command name. Aliases: ${COMMAND_ALIASES.join(', ')}.
 
 Example:
-  ${RECOMMENDED_COMMAND} install --time 08:30`);
+  ${RECOMMENDED_COMMAND} install --time 08:30
+  ${RECOMMENDED_COMMAND} install --time 08:30 --jitter 2`);
       return;
     case 'status':
       console.log(`Usage: ${RECOMMENDED_COMMAND} status

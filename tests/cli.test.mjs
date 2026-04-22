@@ -66,8 +66,10 @@ describe('qbeat CLI', () => {
 
     const { stdout } = await runCli(sandbox, ['install', '--help']);
 
-    assert.match(stdout, /Usage: qbeat install \[--time HH:MM\]/);
-    assert.match(stdout, /--time HH:MM\s+Daily kick time in 24-hour format \(default: 07:00\)/);
+    assert.match(stdout, /Usage: qbeat install \[--time HH:MM\] \[--jitter <minutes>\]/);
+    assert.match(stdout, /--time HH:MM\s+First daily kick time in 24-hour format \(default: 07:00\)/);
+    assert.match(stdout, /--jitter <minutes>\s+Max random delay before each kick, 1-30 \(default: 1\)/);
+    assert.match(stdout, /Schedules 3 kicks per day/);
     assert.match(stdout, /install overwrites the existing qbeat schedule\./);
     assert.match(stdout, /Run qbeat as your normal user\. It will use sudo only for pmset\./);
   });
@@ -136,34 +138,81 @@ describe('qbeat CLI', () => {
     );
   });
 
-  it('installs the launch agent and schedules pmset repeat wake', async t => {
+  it('installs the launch agent and schedules 3 pmset repeat wakes', async t => {
     const sandbox = createCliSandbox(t);
 
     const { stdout } = await runCli(sandbox, ['install', '--time', '08:30']);
 
-    assert.match(stdout, /Installed: 08:30/);
-    assert.match(stdout, /Daily wake \+ kick scheduled\./);
+    assert.match(stdout, /Installed: 08:30 \(jitter: 1m\)/);
+    assert.match(stdout, /Daily wakes \+ kicks scheduled\./);
 
     const plist = readFileSync(sandbox.plistPath, 'utf8');
     assert.match(plist, new RegExp(`<string>${process.execPath}</string>`));
     assert.match(plist, /<string>run<\/string>/);
     assert.match(plist, /<string>--time<\/string>/);
     assert.match(plist, /<string>08:30<\/string>/);
+    assert.match(plist, /<string>--jitter<\/string>/);
+    assert.match(plist, /<string>1<\/string>/);
     assert.doesNotMatch(plist, /<key>RunAtLoad<\/key>/);
     assert.match(plist, /<key>PATH<\/key>/,
       'plist must include PATH so launchd can find the claude binary');
+
+    // StartCalendarInterval must be an array with 3 entries
+    assert.match(plist, /<key>StartCalendarInterval<\/key>\s*<array>/s);
+    const dictMatches = [...plist.matchAll(/<dict>\s*<key>Hour<\/key>/g)];
+    assert.equal(dictMatches.length, 3, 'plist must have 3 StartCalendarInterval entries');
 
     const launchctlCalls = readLines(sandbox.launchctlLogPath).map(line => JSON.parse(line));
     assert.deepEqual(launchctlCalls[0].slice(0, 2), ['bootout', `gui/${process.getuid()}`]);
     assert.deepEqual(launchctlCalls[1].slice(0, 2), ['bootstrap', `gui/${process.getuid()}`]);
 
+    // 08:30 + jitter=1: kicks at 08:30, 13:31, 18:32 → wakes at 08:29, 13:30, 18:31
     const state = readJson(sandbox.pmsetStatePath);
-    assert.equal(state.repeat, '08:28:00',
-      'pmset repeat should be set to 2 minutes before kick time');
+    assert.deepEqual(state.repeats, ['08:29:00', '13:30:00', '18:31:00'],
+      'pmset repeat should be set for all 3 kick wake times');
+  });
+
+  it('respects custom --jitter value', async t => {
+    const sandbox = createCliSandbox(t);
+
+    const { stdout } = await runCli(sandbox, ['install', '--time', '07:00', '--jitter', '2']);
+
+    assert.match(stdout, /Installed: 07:00 \(jitter: 2m\)/);
+
+    const plist = readFileSync(sandbox.plistPath, 'utf8');
+    assert.match(plist, /<string>2<\/string>/);
+
+    // 07:00 + jitter=2: kicks at 07:00, 12:02, 17:04 → wakes at 06:59, 12:01, 17:03
+    const state = readJson(sandbox.pmsetStatePath);
+    assert.deepEqual(state.repeats, ['06:59:00', '12:01:00', '17:03:00']);
+  });
+
+  it('rejects --jitter with non-integer or out-of-range values', async t => {
+    const sandbox = createCliSandbox(t);
+
+    await assert.rejects(
+      runCli(sandbox, ['install', '--time', '07:00', '--jitter', '0']),
+      /--jitter must be between 1 and 30/
+    );
+
+    await assert.rejects(
+      runCli(sandbox, ['install', '--time', '07:00', '--jitter', '31']),
+      /--jitter must be between 1 and 30/
+    );
+
+    await assert.rejects(
+      runCli(sandbox, ['install', '--time', '07:00', '--jitter', 'abc']),
+      /--jitter must be a positive integer/
+    );
+
+    await assert.rejects(
+      runCli(sandbox, ['install', '--time', '07:00', '--jitter', '3abc']),
+      /--jitter must be a positive integer/
+    );
   });
 
   it('rolls back pmset and launchd changes when launchctl bootstrap fails', async t => {
-    const sandbox = createCliSandbox(t, { initialRepeat: '06:58:00' });
+    const sandbox = createCliSandbox(t);
     await runCli(sandbox, ['install', '--time', '07:00']);
 
     await assert.rejects(
@@ -182,9 +231,10 @@ describe('qbeat CLI', () => {
     const plist = readFileSync(sandbox.plistPath, 'utf8');
     assert.match(plist, /<string>07:00<\/string>/);
 
+    // 07:00 + jitter=1: wakes at 06:59, 12:00, 17:01
     const state = readJson(sandbox.pmsetStatePath);
-    assert.equal(state.repeat, '06:58:00',
-      'failed installs should restore the previous wake rule');
+    assert.deepEqual(state.repeats, ['06:59:00', '12:00:00', '17:01:00'],
+      'failed installs should restore the previous 3-wake schedule');
   });
 
   it('uses the plist as the only source of truth for status', async t => {
@@ -194,7 +244,8 @@ describe('qbeat CLI', () => {
     const { stdout } = await runCli(sandbox, ['status']);
 
     assert.match(stdout, /Installed: yes/);
-    assert.match(stdout, /Time: 09:10/);
+    // 09:10 + jitter=1: kicks at 09:10, 14:11, 19:12
+    assert.match(stdout, /Time: 09:10 — kicks at 09:10, 14:11, 19:12 \(up to 1m jitter each\)/);
     assert.match(stdout, /Change it with: qbeat install --time HH:MM/);
     assert.match(stdout, /Remove it with: qbeat uninstall/);
   });
@@ -374,7 +425,7 @@ describe('qbeat CLI', () => {
     const sandbox = createCliSandbox(t);
     const dnsPatch = createDnsPatch(sandbox, 'success');
 
-    const { stdout } = await runCli(sandbox, ['run', '--time', '08:30'], {
+    const { stdout } = await runCli(sandbox, ['run', '--time', '08:30', '--jitter', '1'], {
       env: {
         NODE_OPTIONS: `--require ${dnsPatch}`,
         QUOTA_BEAT_TEST_PRELAUNCH_DELAY_MS: '0',
@@ -452,14 +503,14 @@ describe('qbeat CLI', () => {
     assert.equal(existsSync(sandbox.plistPath), false);
 
     const state = readJson(sandbox.pmsetStatePath);
-    assert.equal(state.repeat, null, 'pmset repeat should be cleared');
+    assert.deepEqual(state.repeats, [], 'pmset repeat should be cleared');
   });
 
   it('never checks for updates in launchd-only run', async t => {
     const sandbox = createCliSandbox(t);
     const dnsPatch = createDnsPatch(sandbox, 'success');
 
-    const { stdout } = await runCli(sandbox, ['run', '--time', '07:00'], {
+    const { stdout } = await runCli(sandbox, ['run', '--time', '07:00', '--jitter', '1'], {
       env: {
         NODE_OPTIONS: `--require ${dnsPatch}`,
         QUOTA_BEAT_FORCE_UPDATE_CHECK: '1',

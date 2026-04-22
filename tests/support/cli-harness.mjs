@@ -18,7 +18,7 @@ const args = process.argv.slice(2);
 
 function loadState() {
   if (!existsSync(statePath)) {
-    return { repeat: null };
+    return { repeats: [] };
   }
   return JSON.parse(readFileSync(statePath, 'utf8'));
 }
@@ -29,8 +29,9 @@ function saveState(state) {
 
 function render(state) {
   const lines = ['Scheduled power events:'];
-  if (state.repeat) {
-    lines.push(\` Repeating:\\n  wakeorpoweron at \${state.repeat}\`);
+  if (state.repeats && state.repeats.length > 0) {
+    const eventLines = state.repeats.map(t => \`  wakeorpoweron at \${t}\`).join('\\n');
+    lines.push(\` Repeating:\\n\${eventLines}\`);
   }
   return \`\${lines.join('\\n')}\\n\`;
 }
@@ -42,16 +43,29 @@ if (args[0] === '-g' && args[1] === 'sched') {
   process.exit(0);
 }
 
-if (args[0] === 'repeat' && args[1] === 'wakeorpoweron') {
-  state.repeat = args[3];  // time string like "06:58:00"
+if (args[0] === 'repeat' && args[1] === 'cancel' && args[2] === 'wakeorpoweron') {
+  state.repeats = [];
   saveState(state);
   process.exit(0);
 }
 
-if (args[0] === 'repeat' && args[1] === 'cancel' && args[2] === 'wakeorpoweron') {
-  state.repeat = null;
-  saveState(state);
-  process.exit(0);
+if (args[0] === 'repeat') {
+  // Parse multiple triplets: wakeorpoweron MTWRFSU HH:MM:SS [wakeorpoweron MTWRFSU HH:MM:SS ...]
+  const times = [];
+  let i = 1;
+  while (i + 2 < args.length) {
+    if (args[i] === 'wakeorpoweron') {
+      times.push(args[i + 2]);
+      i += 3;
+    } else {
+      break;
+    }
+  }
+  if (times.length > 0) {
+    state.repeats = times;
+    saveState(state);
+    process.exit(0);
+  }
 }
 
 console.error(\`Unexpected pmset args: \${args.join(' ')}\`);
@@ -180,7 +194,7 @@ export function createCliSandbox(t, options = {}) {
 
   writeFileSync(
     pmsetStatePath,
-    JSON.stringify({ repeat: options.initialRepeat ?? null }, null, 2)
+    JSON.stringify({ repeats: options.initialRepeats ?? [] }, null, 2)
   );
   writeFileSync(launchctlLogPath, '');
   writeFileSync(claudeLogPath, '');

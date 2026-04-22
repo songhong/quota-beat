@@ -81,8 +81,8 @@ export async function waitForNetwork(timeoutMs = 30000) {
   return false;
 }
 
-export function choosePreLaunchDelayMs() {
-  return randomIntInclusive(0, 180000, 'QUOTA_BEAT_TEST_PRELAUNCH_DELAY_MS');
+export function choosePreLaunchDelayMs(maxDelayMs = 60000) {
+  return randomIntInclusive(0, maxDelayMs, 'QUOTA_BEAT_TEST_PRELAUNCH_DELAY_MS');
 }
 
 export function chooseRetryDelayMs() {

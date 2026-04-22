@@ -22,13 +22,15 @@ import {
 import {
   buildPlist,
   cancelPmsetRepeat,
+  computeKickTimes,
   normalizeTime,
+  parseJitterMinutes,
   plistPath,
+  readInstalledConfig,
   readPmsetRepeat,
-  readScheduledTime,
   registerLaunchd,
   schedulePmsetRepeat,
-  setPmsetRepeatWakeTime,
+  setPmsetRepeatWakeTimes,
   unregisterLaunchd,
 } from './scheduler.mjs';
 import { PACKAGE_VERSION } from './meta.mjs';
@@ -68,6 +70,20 @@ function parseTimeValue(command, value, { defaultTime, required = false } = {}) 
   }
 }
 
+const MAX_JITTER_MINUTES = 30;
+
+function parseJitterValue(command, value) {
+  if (value == null) return 1;
+  if (!/^\d+$/.test(value)) {
+    throw new Error(`--jitter must be a positive integer (minutes).\n${usageHint(command)}`);
+  }
+  const n = Number(value);
+  if (n < 1 || n > MAX_JITTER_MINUTES) {
+    throw new Error(`--jitter must be between 1 and ${MAX_JITTER_MINUTES} (minutes).\n${usageHint(command)}`);
+  }
+  return n;
+}
+
 function maybePrintCommandHelp(command, values) {
   if (!values.help) {
     return false;
@@ -94,16 +110,16 @@ function readPreviousInstallState() {
   }
 }
 
-function restorePmsetRepeat(wakeTime) {
-  if (wakeTime) {
-    setPmsetRepeatWakeTime(wakeTime);
+function restorePmsetRepeat(wakeTimes) {
+  if (!wakeTimes || wakeTimes.length === 0) {
+    cancelPmsetRepeat();
     return;
   }
 
-  cancelPmsetRepeat();
+  setPmsetRepeatWakeTimes(wakeTimes);
 }
 
-function rollbackFailedInstall(previousInstall, previousWakeTime) {
+function rollbackFailedInstall(previousInstall, previousWakeTimes) {
   const errors = [];
 
   try {
@@ -117,7 +133,7 @@ function rollbackFailedInstall(previousInstall, previousWakeTime) {
   }
 
   try {
-    restorePmsetRepeat(previousWakeTime);
+    restorePmsetRepeat(previousWakeTimes);
   } catch (err) {
     errors.push(`pmset rollback failed: ${err.message}`);
   }
@@ -135,7 +151,7 @@ function assertSupportedPlatform(command) {
   );
 }
 
-async function runClaudeKick({ scheduled = false } = {}) {
+async function runClaudeKick({ scheduled = false, jitterMinutes = 1 } = {}) {
   console.log('Checking network...');
   const networkReady = await waitForNetwork(30000);
   if (!networkReady) {
@@ -144,7 +160,7 @@ async function runClaudeKick({ scheduled = false } = {}) {
 
   let preLaunchDelayMs = null;
   if (scheduled) {
-    preLaunchDelayMs = choosePreLaunchDelayMs();
+    preLaunchDelayMs = choosePreLaunchDelayMs(jitterMinutes * 60 * 1000);
     console.log(`Network ready. Delaying Claude launch for ${formatDelay(preLaunchDelayMs)}.`);
     await sleepDelay(preLaunchDelayMs);
   }
@@ -174,6 +190,7 @@ function assertInstallRunAsUser() {
 async function cmdInstall(args) {
   const { values } = parseCommandArgs('install', args, {
     time: { type: 'string' },
+    jitter: { type: 'string' },
   });
   if (maybePrintCommandHelp('install', values)) {
     return;
@@ -183,30 +200,31 @@ async function cmdInstall(args) {
   const time = parseTimeValue('install', values.time, {
     defaultTime: DEFAULT_INSTALL_TIME,
   });
+  const jitterMinutes = parseJitterValue('install', values.jitter);
   const nodePath = process.execPath;
   const scriptPath = resolve(process.argv[1]);
   const claudePath = resolveClaudePath();
   const logDir = logDirPath();
   const previousInstall = readPreviousInstallState();
-  const previousWakeTime = readPmsetRepeat();
+  const previousWakeTimes = readPmsetRepeat();
 
   prepareLaunchdLogs(logDir);
 
   const envPath = [...new Set([dirname(claudePath), dirname(nodePath)])].join(':');
-  const plist = buildPlist({ time, nodePath, scriptPath, logDir, envPath });
-  schedulePmsetRepeat(time);
+  const plist = buildPlist({ time, nodePath, scriptPath, logDir, envPath, jitterMinutes });
+  schedulePmsetRepeat(time, jitterMinutes);
   try {
     registerLaunchd(plist);
   } catch (err) {
-    const rollbackErrors = rollbackFailedInstall(previousInstall, previousWakeTime);
+    const rollbackErrors = rollbackFailedInstall(previousInstall, previousWakeTimes);
     if (rollbackErrors.length > 0) {
       throw new Error(`${err.message} Rollback also failed: ${rollbackErrors.join('; ')}`);
     }
     throw err;
   }
 
-  console.log(`Installed: ${time}`);
-  console.log('Daily wake + kick scheduled.');
+  console.log(`Installed: ${time} (jitter: ${jitterMinutes}m)`);
+  console.log('Daily wakes + kicks scheduled.');
 }
 
 async function cmdStatus(args) {
@@ -215,9 +233,9 @@ async function cmdStatus(args) {
     return;
   }
 
-  let time;
+  let time, jitterMinutes;
   try {
-    time = readScheduledTime();
+    ({ time, jitterMinutes } = readInstalledConfig());
   } catch (err) {
     if (err.code === 'ENOENT') {
       console.log('Not installed.');
@@ -228,8 +246,9 @@ async function cmdStatus(args) {
     process.exit(1);
   }
 
+  const kicks = computeKickTimes(time, jitterMinutes);
   console.log('Installed: yes');
-  console.log(`Time: ${time}`);
+  console.log(`Time: ${time} — kicks at ${kicks.join(', ')} (up to ${jitterMinutes}m jitter each)`);
   console.log(`Change it with: ${RECOMMENDED_COMMAND} install --time HH:MM`);
   console.log(`Remove it with: ${RECOMMENDED_COMMAND} uninstall`);
 }
@@ -252,12 +271,14 @@ async function cmdKick(args) {
 async function cmdRun(args) {
   const { values } = parseCommandArgs('run', args, {
     time: { type: 'string' },
+    jitter: { type: 'string' },
   });
 
   parseTimeValue('run', values.time, { required: true });
+  const jitterMinutes = parseJitterValue('run', values.jitter);
 
   try {
-    await runClaudeKick({ scheduled: true });
+    await runClaudeKick({ scheduled: true, jitterMinutes });
     console.log('Scheduled kick completed.');
   } catch (err) {
     console.error(`Scheduled kick failed: ${err.message}`);
