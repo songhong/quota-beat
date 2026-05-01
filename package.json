@@ -1,6 +1,6 @@
 {
   "name": "@yesongh/quota-beat",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "macOS-only CLI to kick Claude Code and Codex at a fixed time every day",
   "type": "module",
   "files": [
