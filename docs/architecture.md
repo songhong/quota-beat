@@ -11,7 +11,7 @@ Before any operational command (`install`, `status`, `kick`, `uninstall`, or `ru
 1. Parse and validate the requested time.
 2. Capture the absolute Node path from `process.execPath`.
 3. Resolve the CLI script path from `process.argv[1]`.
-4. Resolve the absolute `claude` binary path and embed its directory in the plist `PATH`.
+4. Resolve the absolute `claude` and `codex` binary paths and embed their directories in the plist `PATH`.
 5. Generate a launchd plist whose `ProgramArguments` are:
    - absolute Node path
    - absolute CLI script path
@@ -19,7 +19,7 @@ Before any operational command (`install`, `status`, `kick`, `uninstall`, or `ru
    - `--time`
    - configured `HH:MM`
 6. Snapshot the current `pmset repeat wakeorpoweron` rule.
-7. Set `pmset repeat wakeorpoweron MTWRFSU` at `time - 2 minutes`.
+7. Set `pmset repeat wakeorpoweron MTWRFSU` at `time - 1 minute` for each kick time.
 8. Register or replace the launchd agent.
 9. If launchd registration fails, remove the new plist and restore the previous `pmset` rule.
 
@@ -42,20 +42,21 @@ The reusable design notes and rollout pitfalls for this flow live in
 
 ### `kick`
 
-1. Wait for network for up to 30 seconds.
-2. Run a minimal Claude CLI request immediately.
-3. If the first attempt fails, retry at most once after a random 5 to 10 second delay.
-4. Append a JSON Lines record for each Claude attempt under `~/.quota-beat/logs/claude.jsonl`.
-5. Exit with success or failure.
-6. Do not mutate scheduling state.
+1. Resolve available providers from `PATH` (Claude Code, Codex — missing ones are skipped with a warning).
+2. Wait for network for up to 30 seconds (checks DNS for `api.anthropic.com` and `api.openai.com`).
+3. For each available provider, run a minimal request immediately.
+4. If a provider's first attempt fails, retry at most once after a random 5 to 10 second delay.
+5. Append a JSON Lines record for each attempt under `~/.quota-beat/logs/kick.jsonl` (includes a `provider` field).
+6. Exit with success if at least one provider succeeded, or failure if all failed.
+7. Do not mutate scheduling state.
 
 ### `run --time HH:MM`
 
 1. Validate the required scheduled time passed by launchd.
-2. Wait for network readiness, then add a random 0 to 3 minute delay before the first Claude invocation.
-3. Attempt the same Claude kick flow as `kick`.
+2. Wait for network readiness, then add a random 0 to `jitterMinutes` delay before the first provider invocation.
+3. Attempt the same kick flow as `kick` for all available providers.
 4. Emit failures to stderr so launchd logs remain useful.
-5. Preserve the per-attempt Claude JSONL log for deeper inspection, including delay metadata.
+5. Preserve the per-attempt kick JSONL log for deeper inspection, including delay metadata.
 
 `run` does not touch pmset. Wake scheduling is permanent via `pmset repeat` (set once during `install`).
 
@@ -99,7 +100,7 @@ Note: `pmset repeat` is global (one rule per type). If the user has an existing 
 - [`src/scheduler.mjs`](../src/scheduler.mjs)
   launchd and pmset integration.
 - [`src/kick.mjs`](../src/kick.mjs)
-  Network + Claude execution.
+  Provider definitions, network readiness check, and CLI execution (Claude Code, Codex).
 - [`tests/cli.test.mjs`](../tests/cli.test.mjs)
   CLI validation, self-update behavior, and smoke tests.
 - [`tests/scheduler.test.mjs`](../tests/scheduler.test.mjs)

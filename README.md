@@ -2,7 +2,7 @@
 
 [English](README.md) | [中文](README.zh-CN.md)
 
-Kick Claude Code at a fixed time every morning, even while your Mac is asleep.
+Kick Claude Code and Codex at a fixed time every morning, even while your Mac is asleep.
 
 ## Why
 
@@ -20,7 +20,7 @@ Without this anchor, the cycle drifts based on whenever you happen to start. `qu
 
 - macOS (depends on `launchd` and `pmset`)
 - Node.js >= 18
-- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated
+- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) and/or [Codex CLI](https://github.com/openai/codex) installed and authenticated
 - `sudo` access (required for `pmset repeat wakeorpoweron`)
 
 ## Install
@@ -70,7 +70,7 @@ Show the configured daily time. Reads directly from the installed `launchd` plis
 
 ### `qbeat kick`
 
-Run a Claude Code kick immediately. Does **not** modify any schedule.
+Run a kick for all available providers (Claude Code, Codex) immediately. Does **not** modify any schedule.
 
 ### `qbeat uninstall`
 
@@ -88,21 +88,21 @@ Implementation notes and rollout pitfalls are documented in [`docs/self-update-p
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  pmset repeat wakeorpoweron (configured time − 2 min)│
+│  pmset repeat wakeorpoweron (configured time − 1 min)│
 │        ↓  Mac wakes from sleep                      │
 │  launchd fires the scheduled quota-beat job         │
 │        ↓                                            │
 │  1. Wait for network (up to 30s)                    │
-│  2. Send minimal Claude CLI request                 │
-│  3. Append Claude attempt log                       │
+│  2. Kick all available providers (Claude Code, Codex)│
+│  3. Append kick attempt log                         │
 └─────────────────────────────────────────────────────┘
 ```
 
-1. **`pmset repeat wakeorpoweron`** wakes your Mac 2 minutes before the configured time every day.
+1. **`pmset repeat wakeorpoweron`** wakes your Mac 1 minute before each configured kick time every day.
 2. **`launchd`** triggers the installed quota-beat job at the exact configured time.
-3. The tool checks network connectivity (DNS lookup to `api.anthropic.com`, retries for up to 30 seconds).
-4. A minimal Claude CLI request (`claude -p --model haiku "Reply with exactly OK."`) is sent to activate the quota.
-5. Each Claude attempt is appended to `~/.quota-beat/logs/claude.jsonl` for later inspection.
+3. The tool checks network connectivity (DNS lookup to `api.anthropic.com` and `api.openai.com`, retries for up to 30 seconds).
+4. A minimal request is sent to each available provider — Claude Code (`claude -p --model haiku "Reply with exactly OK."`) and/or Codex (`codex exec -m o3 "Reply with exactly OK."`) — to activate the quota.
+5. Each kick attempt is appended to `~/.quota-beat/logs/kick.jsonl` for later inspection.
 
 ## Architecture
 
@@ -114,7 +114,7 @@ Five zero-dependency modules:
 | `src/help.mjs` | Root help text, command help text, and usage hints |
 | `src/update.mjs` | Interactive npm version checks, cache management, prompting, and self-update |
 | `src/scheduler.mjs` | launchd plist generation & parsing, pmset wake scheduling & cleanup |
-| `src/kick.mjs` | Network readiness check, Claude CLI execution |
+| `src/kick.mjs` | Provider definitions, network readiness check, CLI execution (Claude Code, Codex) |
 
 Key design decisions:
 
@@ -133,13 +133,13 @@ launchd stdout/stderr logs are written to:
 ~/.quota-beat/logs/launchd.stderr.log
 ```
 
-Each Claude CLI attempt is also appended as one JSON record per line to:
+Each provider kick attempt is also appended as one JSON record per line to:
 
 ```
-~/.quota-beat/logs/claude.jsonl
+~/.quota-beat/logs/kick.jsonl
 ```
 
-This file captures whether the real Claude invocation succeeded, its exit code, and short stdout/stderr previews.
+Each entry includes a `provider` field (`claude` or `codex`), whether the invocation succeeded, its exit code, and short stdout/stderr previews.
 
 ## Troubleshooting
 
