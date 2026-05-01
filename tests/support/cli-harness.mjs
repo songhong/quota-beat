@@ -50,19 +50,9 @@ if (args[0] === 'repeat' && args[1] === 'cancel' && args[2] === 'wakeorpoweron')
 }
 
 if (args[0] === 'repeat') {
-  // Parse multiple triplets: wakeorpoweron MTWRFSU HH:MM:SS [wakeorpoweron MTWRFSU HH:MM:SS ...]
-  const times = [];
-  let i = 1;
-  while (i + 2 < args.length) {
-    if (args[i] === 'wakeorpoweron') {
-      times.push(args[i + 2]);
-      i += 3;
-    } else {
-      break;
-    }
-  }
-  if (times.length > 0) {
-    state.repeats = times;
+  // macOS pmset repeat only supports one wakeorpoweron event per day.
+  if (args[1] === 'wakeorpoweron' && args.length === 4) {
+    state.repeats = [args[3]];
     saveState(state);
     process.exit(0);
   }

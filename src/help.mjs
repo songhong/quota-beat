@@ -41,7 +41,8 @@ Options:
 
 Notes:
   Schedules 3 kicks per day: at --time, +5h, and +10h.
-  Each kick fires after the previous kick's maximum possible window.
+  A single pmset repeat wake fires 1 minute before the first kick.
+  The 2nd and 3rd kicks only fire if the Mac is already awake.
   install overwrites the existing ${RECOMMENDED_COMMAND} schedule.
   Run ${RECOMMENDED_COMMAND} as your normal user. It will use sudo only for pmset.
   If your node or claude path changes later, run install again.

@@ -120,18 +120,18 @@ function wakeTimeForHM(h, m) {
   return `${String(wakeH).padStart(2, '0')}:${String(wakeM).padStart(2, '0')}:00`;
 }
 
-export function setPmsetRepeatWakeTimes(wakeTimes) {
-  const repeatArgs = [];
-  for (const t of wakeTimes) {
-    repeatArgs.push('wakeorpoweron', 'MTWRFSU', t);
-  }
-  execFileSync('sudo', ['pmset', 'repeat', ...repeatArgs], { stdio: 'inherit' });
+export function setPmsetRepeatWakeTime(wakeTime) {
+  execFileSync('sudo', ['pmset', 'repeat', 'wakeorpoweron', 'MTWRFSU', wakeTime], { stdio: 'inherit' });
 }
 
 export function schedulePmsetRepeat(time, jitterMinutes = 1) {
   const kicks = computeKickEntries(time, jitterMinutes);
-  const wakeTimes = kicks.map(({ hours, minutes }) => wakeTimeForHM(hours, minutes));
-  setPmsetRepeatWakeTimes(wakeTimes);
+  setPmsetRepeatWakeTime(wakeTimeForHM(kicks[0].hours, kicks[0].minutes));
+}
+
+export function computeFirstWakeHHMM(time, jitterMinutes = 1) {
+  const kicks = computeKickEntries(time, jitterMinutes);
+  return wakeTimeForHM(kicks[0].hours, kicks[0].minutes).slice(0, 5);
 }
 
 export function cancelPmsetRepeat() {

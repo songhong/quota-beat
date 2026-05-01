@@ -19,7 +19,7 @@ Before any operational command (`install`, `status`, `kick`, `uninstall`, or `ru
    - `--time`
    - configured `HH:MM`
 6. Snapshot the current `pmset repeat wakeorpoweron` rule.
-7. Set `pmset repeat wakeorpoweron MTWRFSU` at `time - 1 minute` for each kick time.
+7. Set one `pmset repeat wakeorpoweron MTWRFSU` at `time - 1 minute` (first kick only).
 8. Register or replace the launchd agent.
 9. If launchd registration fails, remove the new plist and restore the previous `pmset` rule.
 
@@ -85,7 +85,9 @@ The agent should only run from `StartCalendarInterval`.
 
 `pmset repeat wakeorpoweron` is a permanent recurring rule — set once at install, repeats every day. No re-scheduling needed.
 
-Note: `pmset repeat` is global (one rule per type). If the user has an existing `wakeorpoweron` repeat rule, `install` will overwrite it. `uninstall` cancels it entirely.
+Note: `pmset repeat` is global and supports only **one** `wakeorpoweron` event per day. If the user has an existing rule, `install` overwrites it. `uninstall` cancels it entirely.
+
+Because only one daily wake is possible via `pmset repeat`, quota-beat registers the wake 1 minute before the first kick only. The 2nd and 3rd kicks (at +5h and +10h) fire only when the Mac is already awake at those times, via their `StartCalendarInterval` entries in the launchd plist.
 
 ## Current File Map
 

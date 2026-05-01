@@ -19,6 +19,7 @@ import {
 import {
   buildPlist,
   cancelPmsetRepeat,
+  computeFirstWakeHHMM,
   computeKickTimes,
   normalizeTime,
   parseJitterMinutes,
@@ -27,7 +28,7 @@ import {
   readPmsetRepeat,
   registerLaunchd,
   schedulePmsetRepeat,
-  setPmsetRepeatWakeTimes,
+  setPmsetRepeatWakeTime,
   unregisterLaunchd,
 } from './scheduler.mjs';
 import { PACKAGE_VERSION } from './meta.mjs';
@@ -113,7 +114,7 @@ function restorePmsetRepeat(wakeTimes) {
     return;
   }
 
-  setPmsetRepeatWakeTimes(wakeTimes);
+  setPmsetRepeatWakeTime(wakeTimes[0]);
 }
 
 function rollbackFailedInstall(previousInstall, previousWakeTimes) {
@@ -211,8 +212,9 @@ async function cmdInstall(args) {
     throw err;
   }
 
+  const wakeTime = computeFirstWakeHHMM(time, jitterMinutes);
   console.log(`Installed: ${time} (jitter: ${jitterMinutes}m)`);
-  console.log('Daily wakes + kicks scheduled.');
+  console.log(`pmset wake: ${wakeTime} daily (first kick only; 2nd/3rd fire only if Mac is awake).`);
 }
 
 async function cmdStatus(args) {
@@ -235,8 +237,10 @@ async function cmdStatus(args) {
   }
 
   const kicks = computeKickTimes(time, jitterMinutes);
+  const wakeTime = computeFirstWakeHHMM(time, jitterMinutes);
   console.log('Installed: yes');
   console.log(`Time: ${time} — kicks at ${kicks.join(', ')} (up to ${jitterMinutes}m jitter each)`);
+  console.log(`pmset wake: ${wakeTime} daily (first kick only; 2nd/3rd fire only if Mac is already awake)`);
   console.log(`Change it with: ${RECOMMENDED_COMMAND} install --time HH:MM`);
   console.log(`Remove it with: ${RECOMMENDED_COMMAND} uninstall`);
 }

@@ -54,7 +54,8 @@ The canonical npm publish procedure lives in [`docs/npm-publish-sop.md`](docs/np
   If launchd registration fails after `pmset` is updated, quota-beat must roll back the wake rule and remove the new plist.
 - `status` uses the installed plist as the only source of truth. There is no state file.
 - `kick` runs all available providers immediately and does not schedule the next wake.
-- `install` schedules 3 kicks per day: at `--time`, `--time + 5h + jitter`, and `--time + 10h + 2×jitter`. `--jitter` sets the max random pre-launch delay per kick in minutes (1–30, default 1). Each pmset wake fires 1 minute before the kick window opens.
+- `install` schedules 3 kicks per day via launchd `StartCalendarInterval`: at `--time`, `--time + 5h + jitter`, and `--time + 10h + 2×jitter`. `--jitter` sets the max random pre-launch delay per kick in minutes (1–30, default 1).
+- `install` registers exactly one `pmset repeat wakeorpoweron` event, 1 minute before the first kick. macOS `pmset repeat` only stores one wake event per day; the 2nd and 3rd kicks fire only if the Mac is already awake at those times.
 - `run` is launchd-only. It attempts the kick for all available providers. After network readiness, it randomizes the launch by 0 to `--jitter` minutes. Wake scheduling is handled by `pmset repeat` (set once during `install`).
 - `run` requires an explicit `--time HH:MM`.
 - Automatic update checks must never run in `run`.
@@ -73,7 +74,7 @@ The canonical npm publish procedure lives in [`docs/npm-publish-sop.md`](docs/np
   containing the `claude`, `codex`, and `node` binaries resolved at install time.
   launchd's default PATH (`/usr/bin:/bin:/usr/sbin:/sbin`) does not include
   user-managed tool directories like `/opt/homebrew/bin`.
-- pmset uses `pmset repeat wakeorpoweron` (recurring) instead of one-shot `pmset schedule wake`.
+- pmset uses `pmset repeat wakeorpoweron` (recurring) for the single daily wake.
   `uninstall` cancels via `pmset repeat cancel wakeorpoweron`.
 
 ## Operational Notes

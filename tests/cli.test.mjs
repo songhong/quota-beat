@@ -141,13 +141,13 @@ describe('qbeat CLI', () => {
     );
   });
 
-  it('installs the launch agent and schedules 3 pmset repeat wakes', async t => {
+  it('installs the launch agent and schedules a pmset repeat wake', async t => {
     const sandbox = createCliSandbox(t);
 
     const { stdout } = await runCli(sandbox, ['install', '--time', '08:30']);
 
     assert.match(stdout, /Installed: 08:30 \(jitter: 1m\)/);
-    assert.match(stdout, /Daily wakes \+ kicks scheduled\./);
+    assert.match(stdout, /pmset wake: 08:29 daily \(first kick only/);
 
     const plist = readFileSync(sandbox.plistPath, 'utf8');
     assert.match(plist, new RegExp(`<string>${process.execPath}</string>`));
@@ -169,10 +169,10 @@ describe('qbeat CLI', () => {
     assert.deepEqual(launchctlCalls[0].slice(0, 2), ['bootout', `gui/${process.getuid()}`]);
     assert.deepEqual(launchctlCalls[1].slice(0, 2), ['bootstrap', `gui/${process.getuid()}`]);
 
-    // 08:30 + jitter=1: kicks at 08:30, 13:31, 18:32 → wakes at 08:29, 13:30, 18:31
+    // 08:30 + jitter=1: first kick at 08:30 → single pmset wake at 08:29
     const state = readJson(sandbox.pmsetStatePath);
-    assert.deepEqual(state.repeats, ['08:29:00', '13:30:00', '18:31:00'],
-      'pmset repeat should be set for all 3 kick wake times');
+    assert.deepEqual(state.repeats, ['08:29:00'],
+      'pmset repeat should be set for first kick wake time only');
   });
 
   it('respects custom --jitter value', async t => {
@@ -185,9 +185,9 @@ describe('qbeat CLI', () => {
     const plist = readFileSync(sandbox.plistPath, 'utf8');
     assert.match(plist, /<string>2<\/string>/);
 
-    // 07:00 + jitter=2: kicks at 07:00, 12:02, 17:04 → wakes at 06:59, 12:01, 17:03
+    // 07:00 + jitter=2: first kick at 07:00 → single pmset wake at 06:59
     const state = readJson(sandbox.pmsetStatePath);
-    assert.deepEqual(state.repeats, ['06:59:00', '12:01:00', '17:03:00']);
+    assert.deepEqual(state.repeats, ['06:59:00']);
   });
 
   it('rejects --jitter with non-integer or out-of-range values', async t => {
@@ -234,10 +234,10 @@ describe('qbeat CLI', () => {
     const plist = readFileSync(sandbox.plistPath, 'utf8');
     assert.match(plist, /<string>07:00<\/string>/);
 
-    // 07:00 + jitter=1: wakes at 06:59, 12:00, 17:01
+    // rolled back to previous install (07:00 + jitter=1): single pmset wake at 06:59
     const state = readJson(sandbox.pmsetStatePath);
-    assert.deepEqual(state.repeats, ['06:59:00', '12:00:00', '17:01:00'],
-      'failed installs should restore the previous 3-wake schedule');
+    assert.deepEqual(state.repeats, ['06:59:00'],
+      'failed installs should restore the previous single-wake schedule');
   });
 
   it('uses the plist as the only source of truth for status', async t => {
@@ -247,8 +247,9 @@ describe('qbeat CLI', () => {
     const { stdout } = await runCli(sandbox, ['status']);
 
     assert.match(stdout, /Installed: yes/);
-    // 09:10 + jitter=1: kicks at 09:10, 14:11, 19:12
+    // 09:10 + jitter=1: kicks at 09:10, 14:11, 19:12; wake at 09:09
     assert.match(stdout, /Time: 09:10 — kicks at 09:10, 14:11, 19:12 \(up to 1m jitter each\)/);
+    assert.match(stdout, /pmset wake: 09:09 daily \(first kick only/);
     assert.match(stdout, /Change it with: qbeat install --time HH:MM/);
     assert.match(stdout, /Remove it with: qbeat uninstall/);
   });
