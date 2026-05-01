@@ -389,8 +389,6 @@ describe('qbeat CLI', () => {
     const claudeCalls = readLines(sandbox.claudeLogPath).map(line => JSON.parse(line));
     assert.deepEqual(claudeCalls, [[
       '-p',
-      '--model',
-      'haiku',
       '--no-session-persistence',
       '--tools',
       '',
@@ -559,13 +557,16 @@ describe('qbeat CLI', () => {
     const claudeCalls = readLines(sandbox.claudeLogPath).map(line => JSON.parse(line));
     assert.equal(claudeCalls.length, 1);
     assert.deepEqual(claudeCalls[0], [
-      '-p', '--model', 'haiku', '--no-session-persistence',
+      '-p', '--no-session-persistence',
       '--tools', '', '--no-chrome', 'Reply with exactly OK.',
     ]);
 
     const codexCalls = readLines(sandbox.codexLogPath).map(line => JSON.parse(line));
     assert.equal(codexCalls.length, 1);
-    assert.deepEqual(codexCalls[0], ['exec', '--ephemeral', '-c', 'model_reasoning_effort=low', 'Reply with exactly OK.']);
+    assert.deepEqual(codexCalls[0], [
+      'exec', '--ephemeral', '--skip-git-repo-check',
+      '-c', 'model_reasoning_effort=low', 'Reply with exactly OK.',
+    ]);
 
     const invocationLog = readLines(sandbox.kickLogPath).map(line => JSON.parse(line));
     assert.equal(invocationLog.length, 2);
@@ -621,7 +622,10 @@ describe('qbeat CLI', () => {
 
     const codexCalls = readLines(sandbox.codexLogPath).map(line => JSON.parse(line));
     assert.equal(codexCalls.length, 1);
-    assert.deepEqual(codexCalls[0], ['exec', '--ephemeral', '-c', 'model_reasoning_effort=low', 'Reply with exactly OK.']);
+    assert.deepEqual(codexCalls[0], [
+      'exec', '--ephemeral', '--skip-git-repo-check',
+      '-c', 'model_reasoning_effort=low', 'Reply with exactly OK.',
+    ]);
   });
 
   it('install succeeds when codex is not in PATH', async t => {

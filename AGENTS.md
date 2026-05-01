@@ -66,6 +66,8 @@ The canonical npm publish procedure lives in [`docs/npm-publish-sop.md`](docs/np
   This log is additive and is separate from the launchd stdout/stderr files.
 - Provider execution is intentionally conservative:
   wait for network up to 30 seconds, attempt each provider once, then retry at most one more time after a random 5 to 10 second delay.
+- Claude provider execution must not force a model; it should use the user's configured Claude Code default model.
+- Codex provider execution must include `--skip-git-repo-check` because launchd may start qbeat outside a trusted git repository.
 - launchd must not rely on `#!/usr/bin/env node`.
   The plist must invoke the absolute Node path captured from `process.execPath` at install time.
 - The plist must not use `RunAtLoad`.

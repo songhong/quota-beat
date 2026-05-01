@@ -11,7 +11,6 @@ const PROVIDERS = [
     command: 'claude',
     args: [
       '-p',
-      '--model', 'haiku',
       '--no-session-persistence',
       '--tools', '',
       '--no-chrome',
@@ -23,7 +22,14 @@ const PROVIDERS = [
     name: 'codex',
     displayName: 'Codex',
     command: 'codex',
-    args: ['exec', '--ephemeral', '-c', 'model_reasoning_effort=low', 'Reply with exactly OK.'],
+    args: [
+      'exec',
+      '--ephemeral',
+      '--skip-git-repo-check',
+      '-c',
+      'model_reasoning_effort=low',
+      'Reply with exactly OK.',
+    ],
     dnsHost: 'api.openai.com',
     timeoutMs: 180000,
   },

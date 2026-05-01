@@ -101,7 +101,7 @@ qbeat status
 1. **`pmset repeat wakeorpoweron`** 每天在每个配置时间前 1 分钟唤醒 Mac。
 2. **`launchd`** 在配置的精确时间触发已安装的 quota-beat 定时任务。
 3. 工具检查网络连通性（DNS 查询 `api.anthropic.com` 和 `api.openai.com`，最多重试 30 秒）。
-4. 向每个可用的 provider 发送最小请求 — Claude Code（`claude -p --model haiku "Reply with exactly OK."`）和/或 Codex（`codex exec -m o3 "Reply with exactly OK."`）— 来激活配额。
+4. 向每个可用的 provider 发送最小请求 — Claude Code（`claude -p "Reply with exactly OK."`，使用你配置的默认模型）和/或 Codex（`codex exec --ephemeral --skip-git-repo-check -c model_reasoning_effort=low "Reply with exactly OK."`）— 来激活配额。
 5. 每次 kick 调用都会追加到 `~/.quota-beat/logs/kick.jsonl`，便于事后核查。
 
 ## 架构

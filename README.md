@@ -101,7 +101,7 @@ Implementation notes and rollout pitfalls are documented in [`docs/self-update-p
 1. **`pmset repeat wakeorpoweron`** wakes your Mac 1 minute before each configured kick time every day.
 2. **`launchd`** triggers the installed quota-beat job at the exact configured time.
 3. The tool checks network connectivity (DNS lookup to `api.anthropic.com` and `api.openai.com`, retries for up to 30 seconds).
-4. A minimal request is sent to each available provider — Claude Code (`claude -p --model haiku "Reply with exactly OK."`) and/or Codex (`codex exec -m o3 "Reply with exactly OK."`) — to activate the quota.
+4. A minimal request is sent to each available provider — Claude Code (`claude -p "Reply with exactly OK."`, using your configured default model) and/or Codex (`codex exec --ephemeral --skip-git-repo-check -c model_reasoning_effort=low "Reply with exactly OK."`) — to activate the quota.
 5. Each kick attempt is appended to `~/.quota-beat/logs/kick.jsonl` for later inspection.
 
 ## Architecture

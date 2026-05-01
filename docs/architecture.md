@@ -44,11 +44,12 @@ The reusable design notes and rollout pitfalls for this flow live in
 
 1. Resolve available providers from `PATH` (Claude Code, Codex — missing ones are skipped with a warning).
 2. Wait for network for up to 30 seconds (checks DNS for `api.anthropic.com` and `api.openai.com`).
-3. For each available provider, run a minimal request immediately.
+3. For each available provider, run a minimal request immediately. Claude uses the user's configured Claude Code default model.
 4. If a provider's first attempt fails, retry at most once after a random 5 to 10 second delay.
-5. Append a JSON Lines record for each attempt under `~/.quota-beat/logs/kick.jsonl` (includes a `provider` field).
-6. Exit with success if at least one provider succeeded, or failure if all failed.
-7. Do not mutate scheduling state.
+5. Codex runs with `--skip-git-repo-check` because launchd may start qbeat outside a trusted git repository.
+6. Append a JSON Lines record for each attempt under `~/.quota-beat/logs/kick.jsonl` (includes a `provider` field).
+7. Exit with success if at least one provider succeeded, or failure if all failed.
+8. Do not mutate scheduling state.
 
 ### `run --time HH:MM`
 
