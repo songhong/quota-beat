@@ -564,7 +564,7 @@ describe('qbeat CLI', () => {
 
     const codexCalls = readLines(sandbox.codexLogPath).map(line => JSON.parse(line));
     assert.equal(codexCalls.length, 1);
-    assert.deepEqual(codexCalls[0], ['exec', '-m', 'o3', 'Reply with exactly OK.']);
+    assert.deepEqual(codexCalls[0], ['exec', '--ephemeral', 'Reply with exactly OK.']);
 
     const invocationLog = readLines(sandbox.kickLogPath).map(line => JSON.parse(line));
     assert.equal(invocationLog.length, 2);
@@ -620,7 +620,7 @@ describe('qbeat CLI', () => {
 
     const codexCalls = readLines(sandbox.codexLogPath).map(line => JSON.parse(line));
     assert.equal(codexCalls.length, 1);
-    assert.deepEqual(codexCalls[0], ['exec', '-m', 'o3', 'Reply with exactly OK.']);
+    assert.deepEqual(codexCalls[0], ['exec', '--ephemeral', 'Reply with exactly OK.']);
   });
 
   it('install succeeds when codex is not in PATH', async t => {

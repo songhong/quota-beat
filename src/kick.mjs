@@ -23,7 +23,7 @@ const PROVIDERS = [
     name: 'codex',
     displayName: 'Codex',
     command: 'codex',
-    args: ['exec', '-m', 'o3', 'Reply with exactly OK.'],
+    args: ['exec', '--ephemeral', 'Reply with exactly OK.'],
     dnsHost: 'api.openai.com',
   },
 ];
