@@ -8,7 +8,7 @@ This file is the canonical engineering source of truth for this repository.
 
 ## Project Summary
 
-`quota-beat` is a macOS-only CLI that kicks Claude Code at a fixed daily time.
+`quota-beat` is a macOS-only CLI that kicks Claude Code and Codex at a fixed daily time.
 Interactive foreground commands may also check for a newer published npm version and offer a self-update.
 
 The npm package name is `@yesongh/quota-beat`.
@@ -38,7 +38,7 @@ The implementation is intentionally small and split into five modules:
 - [`src/scheduler.mjs`](src/scheduler.mjs)
   launchd plist generation, plist parsing, pmset wake scheduling, wake cleanup.
 - [`src/kick.mjs`](src/kick.mjs)
-  Network readiness check, minimal Claude CLI execution, and Claude attempt logging.
+  Provider definitions, network readiness check, minimal CLI execution (Claude Code, Codex), and unified kick logging.
 
 Detailed architecture notes live in [`docs/architecture.md`](docs/architecture.md).
 The shortest full-machine sleep/wake validation checklist lives in [`docs/sleep-wake-verification.md`](docs/sleep-wake-verification.md).
@@ -53,23 +53,24 @@ The canonical npm publish procedure lives in [`docs/npm-publish-sop.md`](docs/np
 - `install` must not leave a partial quota-beat state behind.
   If launchd registration fails after `pmset` is updated, quota-beat must roll back the wake rule and remove the new plist.
 - `status` uses the installed plist as the only source of truth. There is no state file.
-- `kick` runs Claude immediately and does not schedule the next wake.
+- `kick` runs all available providers immediately and does not schedule the next wake.
 - `install` schedules 3 kicks per day: at `--time`, `--time + 5h + jitter`, and `--time + 10h + 2×jitter`. `--jitter` sets the max random pre-launch delay per kick in minutes (1–30, default 1). Each pmset wake fires 1 minute before the kick window opens.
-- `run` is launchd-only. It attempts the Claude kick only. After network readiness, it randomizes the Claude launch by 0 to `--jitter` minutes. Wake scheduling is handled by `pmset repeat` (set once during `install`).
+- `run` is launchd-only. It attempts the kick for all available providers. After network readiness, it randomizes the launch by 0 to `--jitter` minutes. Wake scheduling is handled by `pmset repeat` (set once during `install`).
 - `run` requires an explicit `--time HH:MM`.
 - Automatic update checks must never run in `run`.
 - User-facing help text and end-user docs must not advertise `run`. Only `install`, `status`, `kick`, and `uninstall` are public subcommands. Root flags `-v`/`--version` are public.
   launchd executions must stay non-interactive and must not require npm.
-- Every Claude CLI attempt is appended to `~/.quota-beat/logs/claude.jsonl` as JSON Lines.
+- Every provider kick attempt is appended to `~/.quota-beat/logs/kick.jsonl` as JSON Lines.
+  Each entry includes a `provider` field (`'claude'` or `'codex'`).
   This log is additive and is separate from the launchd stdout/stderr files.
-- Claude execution is intentionally conservative:
-  wait for network up to 30 seconds, attempt once, then retry at most one more time after a random 5 to 10 second delay.
+- Provider execution is intentionally conservative:
+  wait for network up to 30 seconds, attempt each provider once, then retry at most one more time after a random 5 to 10 second delay.
 - launchd must not rely on `#!/usr/bin/env node`.
   The plist must invoke the absolute Node path captured from `process.execPath` at install time.
 - The plist must not use `RunAtLoad`.
   Installing or reloading the agent must not trigger an immediate off-schedule Claude kick.
 - The plist must include `EnvironmentVariables > PATH` with the directories
-  containing both the `claude` and `node` binaries resolved at install time.
+  containing the `claude`, `codex`, and `node` binaries resolved at install time.
   launchd's default PATH (`/usr/bin:/bin:/usr/sbin:/sbin`) does not include
   user-managed tool directories like `/opt/homebrew/bin`.
 - pmset uses `pmset repeat wakeorpoweron` (recurring) instead of one-shot `pmset schedule wake`.
@@ -80,7 +81,7 @@ The canonical npm publish procedure lives in [`docs/npm-publish-sop.md`](docs/np
 - `install` needs `sudo` for `pmset repeat wakeorpoweron`.
 - Do not run `qbeat install` itself under `sudo`.
   `launchd` registration must happen in the logged-in user's `gui/<uid>` domain, while `qbeat` escalates only the internal `pmset` call.
-- If the user's Node or Claude CLI installation path changes after install, they must run `qbeat install --time HH:MM` again so the plist captures the new paths.
+- If the user's Node, Claude CLI, or Codex CLI installation path changes after install, they must run `qbeat install --time HH:MM` again so the plist captures the new paths.
 - `uninstall` removes launchd and quota-beat-owned pmset wake entries. It does not uninstall the globally installed binary.
 - npm installs two command names: `qbeat` and `quotabeat`.
   Install and upgrade via the scoped package name `@yesongh/quota-beat`.
@@ -123,7 +124,7 @@ node bin/qbeat.mjs install --time 07:00
 node bin/qbeat.mjs status
 pmset -g sched
 launchctl print gui/$(id -u)/com.quota-beat.kick
-tail -n 5 ~/.quota-beat/logs/claude.jsonl
+tail -n 5 ~/.quota-beat/logs/kick.jsonl
 node bin/qbeat.mjs uninstall
 ```
 

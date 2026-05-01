@@ -169,6 +169,27 @@ if (process.env.QUOTA_BEAT_CLAUDE_REQUIRE_STDIN_EOF === '1') {
 }
 `;
 
+const codexShim = `#!/usr/bin/env node
+const { appendFileSync } = require('node:fs');
+
+appendFileSync(
+  process.env.QUOTA_BEAT_CODEX_LOG,
+  \`\${JSON.stringify(process.argv.slice(2))}\\n\`
+);
+
+function finish() {
+  const exitCode = Number(process.env.QUOTA_BEAT_CODEX_EXIT_CODE || '0');
+  if (exitCode !== 0) {
+    process.stderr.write(process.env.QUOTA_BEAT_CODEX_STDERR || 'codex failed');
+    process.exit(exitCode);
+  }
+
+  process.stdout.write('OK\\n');
+}
+
+finish();
+`;
+
 function writeExecutable(path, content) {
   writeFileSync(path, content, { mode: 0o755 });
 }
@@ -186,6 +207,7 @@ export function createCliSandbox(t, options = {}) {
   const pmsetStatePath = join(stateDir, 'pmset.json');
   const launchctlLogPath = join(stateDir, 'launchctl.log');
   const claudeLogPath = join(stateDir, 'claude.log');
+  const codexLogPath = join(stateDir, 'codex.log');
   const npmLogPath = join(stateDir, 'npm.log');
 
   ensureDir(homeDir);
@@ -198,6 +220,7 @@ export function createCliSandbox(t, options = {}) {
   );
   writeFileSync(launchctlLogPath, '');
   writeFileSync(claudeLogPath, '');
+  writeFileSync(codexLogPath, '');
   writeFileSync(npmLogPath, '');
   writeFileSync(
     platformPatchPath,
@@ -209,6 +232,7 @@ export function createCliSandbox(t, options = {}) {
   writeExecutable(join(binDir, 'launchctl'), launchctlShim);
   writeExecutable(join(binDir, 'npm'), npmShim);
   writeExecutable(join(binDir, 'claude'), claudeShim);
+  writeExecutable(join(binDir, 'codex'), codexShim);
 
   t.after(() => {
     rmSync(root, { recursive: true, force: true });
@@ -220,8 +244,9 @@ export function createCliSandbox(t, options = {}) {
     pmsetStatePath,
     launchctlLogPath,
     claudeLogPath,
+    codexLogPath,
     npmLogPath,
-    claudeInvocationLogPath: join(homeDir, '.quota-beat', 'logs', 'claude.jsonl'),
+    kickLogPath: join(homeDir, '.quota-beat', 'logs', 'kick.jsonl'),
     plistPath: join(homeDir, 'Library', 'LaunchAgents', plistFileName),
     env(extraEnv = {}) {
       const { NODE_OPTIONS: extraNodeOptions, ...restEnv } = extraEnv;
@@ -239,6 +264,7 @@ export function createCliSandbox(t, options = {}) {
         QUOTA_BEAT_PMSET_STATE: pmsetStatePath,
         QUOTA_BEAT_LAUNCHCTL_LOG: launchctlLogPath,
         QUOTA_BEAT_CLAUDE_LOG: claudeLogPath,
+        QUOTA_BEAT_CODEX_LOG: codexLogPath,
         QUOTA_BEAT_NPM_LOG: npmLogPath,
         ...restEnv,
       };

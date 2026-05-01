@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+
+const nodeBinDir = dirname(process.execPath);
 import { describe, it } from 'node:test';
 import {
   createCliSandbox,
@@ -22,7 +25,7 @@ describe('qbeat CLI', () => {
     assert.match(stdout, /Usage: qbeat <command> \[options\]/);
     assert.match(stdout, /Aliases: qbeat, quotabeat/);
     assert.match(stdout, /-v, --version\s+Show the installed qbeat version/);
-    assert.match(stdout, /Keep Claude Code on a fixed daily wake \+ kick schedule on macOS\./);
+    assert.match(stdout, /Keep Claude Code and Codex on a fixed daily wake \+ kick schedule on macOS\./);
     assert.match(stdout, /install\s+Register launchd \+ pmset wake at a fixed time/);
     assert.match(stdout, /status\s+Show the installed daily schedule/);
     assert.match(stdout, /kick\s+Kick Claude Code now/);
@@ -367,11 +370,13 @@ describe('qbeat CLI', () => {
 
   it('runs claude immediately for kick', async t => {
     const sandbox = createCliSandbox(t);
+    rmSync(join(sandbox.root, 'bin', 'codex'));
     const dnsPatch = createDnsPatch(sandbox, 'success');
 
     const { stdout } = await runCli(sandbox, ['kick'], {
       env: {
         NODE_OPTIONS: `--require ${dnsPatch}`,
+        PATH: `${join(sandbox.root, 'bin')}:${nodeBinDir}:/usr/bin:/bin:/usr/sbin:/sbin`,
       },
     });
 
@@ -392,8 +397,9 @@ describe('qbeat CLI', () => {
       'Reply with exactly OK.',
     ]]);
 
-    const invocationLog = readLines(sandbox.claudeInvocationLogPath).map(line => JSON.parse(line));
+    const invocationLog = readLines(sandbox.kickLogPath).map(line => JSON.parse(line));
     assert.equal(invocationLog.length, 1);
+    assert.equal(invocationLog[0].provider, 'claude');
     assert.equal(invocationLog[0].attempt, 1);
     assert.equal(invocationLog[0].success, true);
     assert.equal(invocationLog[0].exitCode, 0);
@@ -404,42 +410,48 @@ describe('qbeat CLI', () => {
 
   it('closes claude stdin so non-interactive invocations can complete', async t => {
     const sandbox = createCliSandbox(t);
+    rmSync(join(sandbox.root, 'bin', 'codex'));
     const dnsPatch = createDnsPatch(sandbox, 'success');
 
     const { stdout } = await runCli(sandbox, ['kick'], {
       env: {
         NODE_OPTIONS: `--require ${dnsPatch}`,
+        PATH: `${join(sandbox.root, 'bin')}:${nodeBinDir}:/usr/bin:/bin:/usr/sbin:/sbin`,
         QUOTA_BEAT_CLAUDE_REQUIRE_STDIN_EOF: '1',
       },
     });
 
     assert.match(stdout, /Kick completed\./);
 
-    const invocationLog = readLines(sandbox.claudeInvocationLogPath).map(line => JSON.parse(line));
+    const invocationLog = readLines(sandbox.kickLogPath).map(line => JSON.parse(line));
     assert.equal(invocationLog.length, 1);
+    assert.equal(invocationLog[0].provider, 'claude');
     assert.equal(invocationLog[0].success, true);
     assert.equal(invocationLog[0].stdoutPreview, 'OK');
   });
 
   it('adds a randomized launch delay for scheduled runs after network is ready', async t => {
     const sandbox = createCliSandbox(t);
+    rmSync(join(sandbox.root, 'bin', 'codex'));
     const dnsPatch = createDnsPatch(sandbox, 'success');
 
     const { stdout } = await runCli(sandbox, ['run', '--time', '08:30', '--jitter', '1'], {
       env: {
         NODE_OPTIONS: `--require ${dnsPatch}`,
+        PATH: `${join(sandbox.root, 'bin')}:${nodeBinDir}:/usr/bin:/bin:/usr/sbin:/sbin`,
         QUOTA_BEAT_TEST_PRELAUNCH_DELAY_MS: '0',
         QUOTA_BEAT_TEST_SKIP_SLEEP: '1',
       },
     });
 
     assert.match(stdout, /Checking network\.\.\./);
-    assert.match(stdout, /Network ready\. Delaying Claude launch for 0s\./);
+    assert.match(stdout, /Network ready\. Delaying launch for 0s\./);
     assert.match(stdout, /Kicking Claude Code\.\.\./);
     assert.match(stdout, /Scheduled kick completed\./);
 
-    const invocationLog = readLines(sandbox.claudeInvocationLogPath).map(line => JSON.parse(line));
+    const invocationLog = readLines(sandbox.kickLogPath).map(line => JSON.parse(line));
     assert.equal(invocationLog.length, 1);
+    assert.equal(invocationLog[0].provider, 'claude');
     assert.equal(invocationLog[0].attempt, 1);
     assert.equal(invocationLog[0].success, true);
     assert.equal(invocationLog[0].preLaunchDelayMs, 0);
@@ -461,12 +473,14 @@ describe('qbeat CLI', () => {
 
   it('surfaces claude failures during kick', async t => {
     const sandbox = createCliSandbox(t);
+    rmSync(join(sandbox.root, 'bin', 'codex'));
     const dnsPatch = createDnsPatch(sandbox, 'success');
 
     await assert.rejects(
       runCli(sandbox, ['kick'], {
         env: {
           NODE_OPTIONS: `--require ${dnsPatch}`,
+          PATH: `${join(sandbox.root, 'bin')}:${nodeBinDir}:/usr/bin:/bin:/usr/sbin:/sbin`,
           QUOTA_BEAT_CLAUDE_EXIT_CODE: '9',
           QUOTA_BEAT_CLAUDE_STDERR: 'broken',
           QUOTA_BEAT_TEST_RETRY_DELAY_MS: '5000',
@@ -481,11 +495,13 @@ describe('qbeat CLI', () => {
       }
     );
 
-    const invocationLog = readLines(sandbox.claudeInvocationLogPath).map(line => JSON.parse(line));
+    const invocationLog = readLines(sandbox.kickLogPath).map(line => JSON.parse(line));
     assert.equal(invocationLog.length, 2);
+    assert.equal(invocationLog[0].provider, 'claude');
     assert.equal(invocationLog[0].attempt, 1);
     assert.equal(invocationLog[0].willRetry, true);
     assert.equal(invocationLog[0].retryDelayMs, 5000);
+    assert.equal(invocationLog[1].provider, 'claude');
     assert.equal(invocationLog[1].attempt, 2);
     assert.equal(invocationLog[1].success, false);
     assert.equal(invocationLog[1].exitCode, 9);
@@ -523,5 +539,151 @@ describe('qbeat CLI', () => {
 
     assert.match(stdout, /Checking network\.\.\./);
     assert.deepEqual(readLines(sandbox.npmLogPath), []);
+  });
+
+  it('kicks both claude and codex when both are available', async t => {
+    const sandbox = createCliSandbox(t);
+    const dnsPatch = createDnsPatch(sandbox, 'success');
+
+    const { stdout } = await runCli(sandbox, ['kick'], {
+      env: {
+        NODE_OPTIONS: `--require ${dnsPatch}`,
+      },
+    });
+
+    assert.match(stdout, /Kicking Claude Code\.\.\./);
+    assert.match(stdout, /Kicking Codex\.\.\./);
+    assert.match(stdout, /Kick completed\./);
+
+    const claudeCalls = readLines(sandbox.claudeLogPath).map(line => JSON.parse(line));
+    assert.equal(claudeCalls.length, 1);
+    assert.deepEqual(claudeCalls[0], [
+      '-p', '--model', 'haiku', '--no-session-persistence',
+      '--tools', '', '--no-chrome', 'Reply with exactly OK.',
+    ]);
+
+    const codexCalls = readLines(sandbox.codexLogPath).map(line => JSON.parse(line));
+    assert.equal(codexCalls.length, 1);
+    assert.deepEqual(codexCalls[0], ['exec', '-m', 'o3', 'Reply with exactly OK.']);
+
+    const invocationLog = readLines(sandbox.kickLogPath).map(line => JSON.parse(line));
+    assert.equal(invocationLog.length, 2);
+    assert.equal(invocationLog[0].provider, 'claude');
+    assert.equal(invocationLog[0].success, true);
+    assert.equal(invocationLog[1].provider, 'codex');
+    assert.equal(invocationLog[1].success, true);
+  });
+
+  it('skips codex when not found in PATH and only kicks claude', async t => {
+    const sandbox = createCliSandbox(t);
+    const dnsPatch = createDnsPatch(sandbox, 'success');
+
+    rmSync(join(sandbox.root, 'bin', 'codex'));
+
+    const { stdout, stderr } = await runCli(sandbox, ['kick'], {
+      env: {
+        NODE_OPTIONS: `--require ${dnsPatch}`,
+        PATH: `${join(sandbox.root, 'bin')}:${nodeBinDir}:/usr/bin:/bin:/usr/sbin:/sbin`,
+      },
+    });
+
+    assert.match(stdout, /Kicking Claude Code\.\.\./);
+    assert.doesNotMatch(stdout, /Kicking Codex\.\.\./);
+    assert.match(stderr, /Warning: Codex not found in PATH/);
+    assert.match(stdout, /Kick completed\./);
+
+    const claudeCalls = readLines(sandbox.claudeLogPath).map(line => JSON.parse(line));
+    assert.equal(claudeCalls.length, 1);
+
+    const invocationLog = readLines(sandbox.kickLogPath).map(line => JSON.parse(line));
+    assert.equal(invocationLog.length, 1);
+    assert.equal(invocationLog[0].provider, 'claude');
+  });
+
+  it('kicks codex when claude is not found in PATH', async t => {
+    const sandbox = createCliSandbox(t);
+    const dnsPatch = createDnsPatch(sandbox, 'success');
+
+    rmSync(join(sandbox.root, 'bin', 'claude'));
+
+    const { stdout, stderr } = await runCli(sandbox, ['kick'], {
+      env: {
+        NODE_OPTIONS: `--require ${dnsPatch}`,
+        PATH: `${join(sandbox.root, 'bin')}:${nodeBinDir}:/usr/bin:/bin:/usr/sbin:/sbin`,
+      },
+    });
+
+    assert.match(stdout, /Kicking Codex\.\.\./);
+    assert.doesNotMatch(stdout, /Kicking Claude Code\.\.\./);
+    assert.match(stderr, /Warning: Claude Code not found in PATH/);
+    assert.match(stdout, /Kick completed\./);
+
+    const codexCalls = readLines(sandbox.codexLogPath).map(line => JSON.parse(line));
+    assert.equal(codexCalls.length, 1);
+    assert.deepEqual(codexCalls[0], ['exec', '-m', 'o3', 'Reply with exactly OK.']);
+  });
+
+  it('install succeeds when codex is not in PATH', async t => {
+    const sandbox = createCliSandbox(t);
+
+    rmSync(join(sandbox.root, 'bin', 'codex'));
+
+    const { stdout, stderr } = await runCli(sandbox, ['install', '--time', '08:30'], {
+      env: {
+        PATH: `${join(sandbox.root, 'bin')}:${nodeBinDir}:/usr/bin:/bin:/usr/sbin:/sbin`,
+      },
+    });
+
+    assert.match(stdout, /Installed: 08:30 \(jitter: 1m\)/);
+    assert.match(stderr, /Warning: Codex not found in PATH/);
+
+    const plist = readFileSync(sandbox.plistPath, 'utf8');
+    assert.match(plist, /<key>PATH<\/key>/);
+  });
+
+  it('install fails when no providers are found in PATH', async t => {
+    const sandbox = createCliSandbox(t);
+
+    rmSync(join(sandbox.root, 'bin', 'claude'));
+    rmSync(join(sandbox.root, 'bin', 'codex'));
+
+    await assert.rejects(
+      runCli(sandbox, ['install', '--time', '08:30'], {
+        env: {
+          PATH: `${join(sandbox.root, 'bin')}:${nodeBinDir}:/usr/bin:/bin:/usr/sbin:/sbin`,
+        },
+      }),
+      err => {
+        assert.equal(err.code, 1);
+        assert.match(err.stderr, /No kick providers found in PATH/);
+        return true;
+      }
+    );
+  });
+
+  it('includes both claude and codex bin dirs in plist PATH', async t => {
+    const sandbox = createCliSandbox(t);
+
+    await runCli(sandbox, ['install', '--time', '09:00']);
+
+    const plist = readFileSync(sandbox.plistPath, 'utf8');
+    const binDir = join(sandbox.root, 'bin');
+    assert.match(plist, new RegExp(binDir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.match(plist, new RegExp(`<string>${process.execPath}</string>`));
+  });
+
+  it('network check succeeds when at least one provider DNS host resolves', async t => {
+    const sandbox = createCliSandbox(t);
+    const dnsPatch = createDnsPatch(sandbox, 'success');
+
+    const { stdout } = await runCli(sandbox, ['kick'], {
+      env: {
+        NODE_OPTIONS: `--require ${dnsPatch}`,
+      },
+    });
+
+    assert.match(stdout, /Kicking Claude Code\.\.\./);
+    assert.match(stdout, /Kicking Codex\.\.\./);
+    assert.match(stdout, /Kick completed\./);
   });
 });

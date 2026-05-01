@@ -1,6 +1,7 @@
 node_modules/
 var/
 iterations/
+docs/superpowers/
 .vscode/
 .worktrees/
 .DS_Store

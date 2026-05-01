@@ -4,20 +4,37 @@ import { dirname, join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { promises as dns } from 'node:dns';
 
-const CLAUDE_ARGS = [
-  '-p',
-  '--model', 'haiku',
-  '--no-session-persistence',
-  '--tools', '',
-  '--no-chrome',
-  'Reply with exactly OK.',
+const PROVIDERS = [
+  {
+    name: 'claude',
+    displayName: 'Claude Code',
+    command: 'claude',
+    args: [
+      '-p',
+      '--model', 'haiku',
+      '--no-session-persistence',
+      '--tools', '',
+      '--no-chrome',
+      'Reply with exactly OK.',
+    ],
+    dnsHost: 'api.anthropic.com',
+  },
+  {
+    name: 'codex',
+    displayName: 'Codex',
+    command: 'codex',
+    args: ['exec', '-m', 'o3', 'Reply with exactly OK.'],
+    dnsHost: 'api.openai.com',
+  },
 ];
+
+export { PROVIDERS };
 
 const MAX_LOG_PREVIEW = 200;
 const TEST_SKIP_SLEEP = process.env.QUOTA_BEAT_TEST_SKIP_SLEEP === '1';
 
-export function claudeInvocationLogPath() {
-  return join(homedir(), '.quota-beat', 'logs', 'claude.jsonl');
+export function kickLogPath() {
+  return join(homedir(), '.quota-beat', 'logs', 'kick.jsonl');
 }
 
 function readTestDelayMs(envVar) {
@@ -57,25 +74,28 @@ function failurePreview(stdout, stderr) {
   return summarizeOutput(stderr) || summarizeOutput(stdout);
 }
 
-function writeClaudeAttemptLog(entry) {
-  const logPath = claudeInvocationLogPath();
+function writeKickLog(entry) {
+  const logPath = kickLogPath();
   mkdirSync(dirname(logPath), { recursive: true });
   appendFileSync(logPath, `${JSON.stringify(entry)}\n`);
 }
 
-async function checkNetwork() {
+async function checkDns(host) {
   try {
-    await dns.lookup('api.anthropic.com');
+    await dns.lookup(host);
     return true;
   } catch {
     return false;
   }
 }
 
-export async function waitForNetwork(timeoutMs = 30000) {
+export async function waitForNetwork(providers, timeoutMs = 30000) {
+  const hosts = [...new Set(providers.map(p => p.dnsHost))];
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    if (await checkNetwork()) return true;
+    for (const host of hosts) {
+      if (await checkDns(host)) return true;
+    }
     await sleep(1000);
   }
   return false;
@@ -97,9 +117,9 @@ export function formatDelay(ms) {
   return formatDelayMs(ms);
 }
 
-function spawnClaude(timeoutMs = 60000) {
+function spawnProvider(provider, timeoutMs = 60000) {
   return new Promise((resolve, reject) => {
-    const child = spawn('claude', CLAUDE_ARGS, {
+    const child = spawn(provider.command, provider.args, {
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: timeoutMs,
     });
@@ -114,8 +134,8 @@ function spawnClaude(timeoutMs = 60000) {
       else {
         const detailText = failurePreview(stdout, stderr);
         const detail = signal
-          ? `claude exited with signal ${signal}: ${detailText}`
-          : `claude exited with code ${code}: ${detailText}`;
+          ? `${provider.command} exited with signal ${signal}: ${detailText}`
+          : `${provider.command} exited with code ${code}: ${detailText}`;
         const err = new Error(detail);
         err.exitCode = code;
         err.signal = signal;
@@ -135,15 +155,16 @@ function spawnClaude(timeoutMs = 60000) {
   });
 }
 
-export async function executeClaude({ retries = 2, timeoutMs = 60000, preLaunchDelayMs = null } = {}) {
+export async function executeProvider(provider, { retries = 2, timeoutMs = 60000, preLaunchDelayMs = null } = {}) {
   let lastErr;
   for (let i = 0; i < retries; i++) {
     const started = Date.now();
     const startedAt = new Date(started).toISOString();
     try {
-      const result = await spawnClaude(timeoutMs);
+      const result = await spawnProvider(provider, timeoutMs);
       const finished = Date.now();
-      writeClaudeAttemptLog({
+      writeKickLog({
+        provider: provider.name,
         attempt: i + 1,
         success: true,
         startedAt,
@@ -161,7 +182,8 @@ export async function executeClaude({ retries = 2, timeoutMs = 60000, preLaunchD
       const finished = Date.now();
       const willRetry = i < retries - 1;
       const retryDelayMs = willRetry ? chooseRetryDelayMs() : null;
-      writeClaudeAttemptLog({
+      writeKickLog({
+        provider: provider.name,
         attempt: i + 1,
         success: false,
         startedAt,
@@ -185,4 +207,34 @@ export async function executeClaude({ retries = 2, timeoutMs = 60000, preLaunchD
     }
   }
   throw lastErr;
+}
+
+export async function runKick({ scheduled = false, jitterMinutes = 1, availableProviders = PROVIDERS } = {}) {
+  console.log('Checking network...');
+  const networkReady = await waitForNetwork(availableProviders);
+  if (!networkReady) {
+    throw new Error('Network not available after 30s.');
+  }
+
+  let preLaunchDelayMs = null;
+  if (scheduled) {
+    preLaunchDelayMs = choosePreLaunchDelayMs(jitterMinutes * 60 * 1000);
+    console.log(`Network ready. Delaying launch for ${formatDelay(preLaunchDelayMs)}.`);
+    await sleepDelay(preLaunchDelayMs);
+  }
+
+  const errors = [];
+  for (const provider of availableProviders) {
+    console.log(`Kicking ${provider.displayName}...`);
+    try {
+      await executeProvider(provider, { preLaunchDelayMs });
+    } catch (err) {
+      console.error(`Kick failed for ${provider.displayName}: ${err.message}`);
+      errors.push(err);
+    }
+  }
+
+  if (errors.length === availableProviders.length) {
+    throw errors[0];
+  }
 }

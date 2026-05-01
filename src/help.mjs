@@ -6,7 +6,7 @@ const COMMAND_ALIASES = ['qbeat', 'quotabeat'];
 export function printUsage() {
   console.log(`Usage: ${RECOMMENDED_COMMAND} <command> [options]
 
-Keep Claude Code on a fixed daily wake + kick schedule on macOS.
+Keep Claude Code and Codex on a fixed daily wake + kick schedule on macOS.
 Aliases: ${COMMAND_ALIASES.join(', ')}
 
 Global options:
@@ -46,6 +46,8 @@ Notes:
   Run ${RECOMMENDED_COMMAND} as your normal user. It will use sudo only for pmset.
   If your node or claude path changes later, run install again.
   ${RECOMMENDED_COMMAND} is the recommended command name. Aliases: ${COMMAND_ALIASES.join(', ')}.
+  Both claude and codex paths are resolved and stored in the plist PATH.
+  If a provider is missing, install still succeeds (it will be skipped at kick time).
 
 Example:
   ${RECOMMENDED_COMMAND} install --time 08:30
@@ -72,7 +74,9 @@ Options:
 
 Behavior:
   Waits up to 30 seconds for network readiness.
-  Attempts Claude once, then retries at most once after a short delay.`);
+  Kicks all installed providers (Claude Code, Codex).
+  Missing providers are skipped with a warning.
+  For each provider, attempts once, then retries at most once after a short delay.`);
       return;
     case 'uninstall':
       console.log(`Usage: ${RECOMMENDED_COMMAND} uninstall

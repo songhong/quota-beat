@@ -13,11 +13,8 @@ import {
   usageHint,
 } from './help.mjs';
 import {
-  choosePreLaunchDelayMs,
-  executeClaude,
-  formatDelay,
-  sleepDelay,
-  waitForNetwork,
+  PROVIDERS,
+  runKick,
 } from './kick.mjs';
 import {
   buildPlist,
@@ -151,32 +148,22 @@ function assertSupportedPlatform(command) {
   );
 }
 
-async function runClaudeKick({ scheduled = false, jitterMinutes = 1 } = {}) {
-  console.log('Checking network...');
-  const networkReady = await waitForNetwork(30000);
-  if (!networkReady) {
-    throw new Error('Network not available after 30s.');
+function resolveProviderPaths() {
+  const paths = new Map();
+  for (const provider of PROVIDERS) {
+    try {
+      const resolved = execFileSync('/usr/bin/which', [provider.command], { encoding: 'utf-8' }).trim();
+      paths.set(provider.name, resolved);
+    } catch {
+      console.warn(`Warning: ${provider.displayName} not found in PATH. Skipping ${provider.displayName} kicks.`);
+    }
   }
-
-  let preLaunchDelayMs = null;
-  if (scheduled) {
-    preLaunchDelayMs = choosePreLaunchDelayMs(jitterMinutes * 60 * 1000);
-    console.log(`Network ready. Delaying Claude launch for ${formatDelay(preLaunchDelayMs)}.`);
-    await sleepDelay(preLaunchDelayMs);
-  }
-
-  console.log('Kicking Claude Code...');
-  await executeClaude({ preLaunchDelayMs });
-}
-
-function resolveClaudePath() {
-  try {
-    return execFileSync('/usr/bin/which', ['claude'], { encoding: 'utf-8' }).trim();
-  } catch {
+  if (paths.size === 0) {
     throw new Error(
-      'Claude CLI not found in PATH. Install it first: https://docs.anthropic.com/en/docs/claude-code'
+      'No kick providers found in PATH. Install at least one of: Claude CLI (https://docs.anthropic.com/en/docs/claude-code), Codex CLI'
     );
   }
+  return paths;
 }
 
 function assertInstallRunAsUser() {
@@ -203,14 +190,15 @@ async function cmdInstall(args) {
   const jitterMinutes = parseJitterValue('install', values.jitter);
   const nodePath = process.execPath;
   const scriptPath = resolve(process.argv[1]);
-  const claudePath = resolveClaudePath();
+  const providerPaths = resolveProviderPaths();
   const logDir = logDirPath();
   const previousInstall = readPreviousInstallState();
   const previousWakeTimes = readPmsetRepeat();
 
   prepareLaunchdLogs(logDir);
 
-  const envPath = [...new Set([dirname(claudePath), dirname(nodePath)])].join(':');
+  const providerDirs = [...providerPaths.values()].map(p => dirname(p));
+  const envPath = [...new Set([...providerDirs, dirname(nodePath)])].join(':');
   const plist = buildPlist({ time, nodePath, scriptPath, logDir, envPath, jitterMinutes });
   schedulePmsetRepeat(time, jitterMinutes);
   try {
@@ -259,8 +247,11 @@ async function cmdKick(args) {
     return;
   }
 
+  const providerPaths = resolveProviderPaths();
+  const availableProviders = PROVIDERS.filter(p => providerPaths.has(p.name));
+
   try {
-    await runClaudeKick();
+    await runKick({ availableProviders });
     console.log('Kick completed.');
   } catch (err) {
     console.error(`Kick failed: ${err.message}`);
@@ -277,8 +268,11 @@ async function cmdRun(args) {
   parseTimeValue('run', values.time, { required: true });
   const jitterMinutes = parseJitterValue('run', values.jitter);
 
+  const providerPaths = resolveProviderPaths();
+  const availableProviders = PROVIDERS.filter(p => providerPaths.has(p.name));
+
   try {
-    await runClaudeKick({ scheduled: true, jitterMinutes });
+    await runKick({ scheduled: true, jitterMinutes, availableProviders });
     console.log('Scheduled kick completed.');
   } catch (err) {
     console.error(`Scheduled kick failed: ${err.message}`);
