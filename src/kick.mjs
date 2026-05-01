@@ -23,8 +23,9 @@ const PROVIDERS = [
     name: 'codex',
     displayName: 'Codex',
     command: 'codex',
-    args: ['exec', '--ephemeral', 'Reply with exactly OK.'],
+    args: ['exec', '--ephemeral', '-c', 'model_reasoning_effort=low', 'Reply with exactly OK.'],
     dnsHost: 'api.openai.com',
+    timeoutMs: 180000,
   },
 ];
 
@@ -156,12 +157,13 @@ function spawnProvider(provider, timeoutMs = 60000) {
 }
 
 export async function executeProvider(provider, { retries = 2, timeoutMs = 60000, preLaunchDelayMs = null } = {}) {
+  const effectiveTimeoutMs = provider.timeoutMs ?? timeoutMs;
   let lastErr;
   for (let i = 0; i < retries; i++) {
     const started = Date.now();
     const startedAt = new Date(started).toISOString();
     try {
-      const result = await spawnProvider(provider, timeoutMs);
+      const result = await spawnProvider(provider, effectiveTimeoutMs);
       const finished = Date.now();
       writeKickLog({
         provider: provider.name,
