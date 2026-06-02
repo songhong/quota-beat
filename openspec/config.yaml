@@ -1,0 +1,19 @@
+schema: ruomu-spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+context: |
+  Tech stack: 
+  Domain:
+  Conventions: conventional commits; see AGENTS.md for repo invariants and Highest Principles
+
+rules:
+  proposal:
+    - "After creating proposal.md, insert a new row into docs/ROADMAP.md above the bottom comment line: | `<change-name>` | ○ | <YYYY-MM-DD> | — | where <change-name> is the exact openspec change directory name and <YYYY-MM-DD> is today's date."
+  tasks:
+    - "Wrap-up must run `npm run test` and confirm all acceptance tests pass."
+    - "Wrap-up must update committed docs according to the Doc Update Map in AGENTS.md."
+    - "Wrap-up must update docs/ROADMAP.md: find this story's row by the backtick-quoted change name in the 'Change' column, change ○ to ✓ in the Status column, and fill in today's date in the Done column."
+    - "Wrap-up must commit with a descriptive message referencing the completed task numbers."
+  apply:
+    - "NEVER implement tasks directly in the main agent. Each task group MUST be dispatched as its own subagent via the Agent tool. Default subagent_type: 'general-purpose'. Use 'codex:codex-rescue' only when the /opsx:apply invocation explicitly requests codex (e.g., 'executor: codex', '用 codex 执行')."
