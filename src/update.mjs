@@ -6,7 +6,7 @@ import { createInterface } from 'node:readline/promises';
 import { HELP_COMMANDS, RECOMMENDED_COMMAND } from './help.mjs';
 import { PACKAGE_NAME, PACKAGE_VERSION } from './meta.mjs';
 const UPDATE_ELIGIBLE_COMMANDS = new Set([...HELP_COMMANDS].filter(command => command !== 'run'));
-const DEFAULT_UPDATE_CHECK_TTL_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_UPDATE_CHECK_TTL_MS = 60 * 60 * 1000;
 
 function stateDirPath() {
   return join(homedir(), '.quota-beat');
