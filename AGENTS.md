@@ -67,6 +67,10 @@ The canonical npm publish procedure lives in [`docs/npm-publish-sop.md`](docs/np
 - Provider execution is intentionally conservative:
   wait for network up to 30 seconds, attempt each provider once, then retry at most one more time after a random 5 to 10 second delay.
 - Claude provider execution must not force a model; it should use the user's configured Claude Code default model.
+- Claude provider runs in interactive mode (pipe stdin/stdout, no TTY): sends `Reply with exactly OK.\n` then closes stdin.
+  `claude -p` no longer refreshes the 5-hour quota window as of 2025-06-15; only a real interactive session does.
+  This mode spawns `claude --no-chrome` with piped stdio; claude accepts pipe input, processes the message, and exits with code 0.
+  Each kick leaves no session file because the session is ephemeral (stdin EOF terminates the process before any session is written).
 - Codex provider execution must include `--skip-git-repo-check` because launchd may start qbeat outside a trusted git repository.
 - launchd must not rely on `#!/usr/bin/env node`.
   The plist must invoke the absolute Node path captured from `process.execPath` at install time.

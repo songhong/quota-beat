@@ -4,19 +4,67 @@ import { dirname, join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { promises as dns } from 'node:dns';
 
+const ANSI_RE = /\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07|\x1b[@-_]/g;
+
+function stripAnsi(s) {
+  return s.replace(ANSI_RE, '');
+}
+
+function runClaudeInteractive(timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const child = spawn('claude', ['--no-chrome'], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    let stdout = '', stderr = '';
+
+    child.stdout.on('data', d => { stdout += d.toString(); });
+    child.stderr.on('data', d => { stderr += d.toString(); });
+
+    child.stdin.write('Reply with exactly OK.\n');
+    child.stdin.end();
+
+    const hardTimer = setTimeout(() => { child.kill('SIGKILL'); }, timeoutMs);
+
+    child.on('close', (code, signal) => {
+      clearTimeout(hardTimer);
+      const cleanStdout = stripAnsi(stdout);
+      const cleanStderr = stripAnsi(stderr);
+      if (code === 0) {
+        resolve({ stdout: cleanStdout, stderr: cleanStderr, exitCode: code, signal: null });
+      } else {
+        const detailText = failurePreview(cleanStdout, cleanStderr);
+        const detail = signal
+          ? `claude exited with signal ${signal}: ${detailText}`
+          : `claude exited with code ${code}: ${detailText}`;
+        const err = new Error(detail);
+        err.exitCode = code;
+        err.signal = signal;
+        err.stdout = cleanStdout;
+        err.stderr = cleanStderr;
+        reject(err);
+      }
+    });
+
+    child.on('error', err => {
+      clearTimeout(hardTimer);
+      err.exitCode = null;
+      err.signal = null;
+      err.stdout = '';
+      err.stderr = '';
+      reject(err);
+    });
+  });
+}
+
 const PROVIDERS = [
   {
     name: 'claude',
     displayName: 'Claude Code',
     command: 'claude',
-    args: [
-      '-p',
-      '--no-session-persistence',
-      '--tools', '',
-      '--no-chrome',
-      'Reply with exactly OK.',
-    ],
     dnsHost: 'api.anthropic.com',
+    timeoutMs: 90000,
+    execute: runClaudeInteractive,
   },
   {
     name: 'codex',
@@ -164,12 +212,15 @@ function spawnProvider(provider, timeoutMs = 60000) {
 
 export async function executeProvider(provider, { retries = 2, timeoutMs = 60000, preLaunchDelayMs = null } = {}) {
   const effectiveTimeoutMs = provider.timeoutMs ?? timeoutMs;
+  const runOnce = provider.execute
+    ? () => provider.execute(effectiveTimeoutMs)
+    : () => spawnProvider(provider, effectiveTimeoutMs);
   let lastErr;
   for (let i = 0; i < retries; i++) {
     const started = Date.now();
     const startedAt = new Date(started).toISOString();
     try {
-      const result = await spawnProvider(provider, effectiveTimeoutMs);
+      const result = await runOnce();
       const finished = Date.now();
       writeKickLog({
         provider: provider.name,

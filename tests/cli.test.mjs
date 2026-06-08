@@ -387,14 +387,7 @@ describe('qbeat CLI', () => {
     assert.doesNotMatch(stdout, /Network ready\. Delaying Claude launch/);
 
     const claudeCalls = readLines(sandbox.claudeLogPath).map(line => JSON.parse(line));
-    assert.deepEqual(claudeCalls, [[
-      '-p',
-      '--no-session-persistence',
-      '--tools',
-      '',
-      '--no-chrome',
-      'Reply with exactly OK.',
-    ]]);
+    assert.deepEqual(claudeCalls, [['--no-chrome']]);
 
     const invocationLog = readLines(sandbox.kickLogPath).map(line => JSON.parse(line));
     assert.equal(invocationLog.length, 1);
@@ -405,28 +398,6 @@ describe('qbeat CLI', () => {
     assert.equal(invocationLog[0].stdoutPreview, 'OK');
     assert.equal(invocationLog[0].stderrPreview, '');
     assert.equal('preLaunchDelayMs' in invocationLog[0], false);
-  });
-
-  it('closes claude stdin so non-interactive invocations can complete', async t => {
-    const sandbox = createCliSandbox(t);
-    rmSync(join(sandbox.root, 'bin', 'codex'));
-    const dnsPatch = createDnsPatch(sandbox, 'success');
-
-    const { stdout } = await runCli(sandbox, ['kick'], {
-      env: {
-        NODE_OPTIONS: `--require ${dnsPatch}`,
-        PATH: `${join(sandbox.root, 'bin')}:${nodeBinDir}:/usr/bin:/bin:/usr/sbin:/sbin`,
-        QUOTA_BEAT_CLAUDE_REQUIRE_STDIN_EOF: '1',
-      },
-    });
-
-    assert.match(stdout, /Kick completed\./);
-
-    const invocationLog = readLines(sandbox.kickLogPath).map(line => JSON.parse(line));
-    assert.equal(invocationLog.length, 1);
-    assert.equal(invocationLog[0].provider, 'claude');
-    assert.equal(invocationLog[0].success, true);
-    assert.equal(invocationLog[0].stdoutPreview, 'OK');
   });
 
   it('adds a randomized launch delay for scheduled runs after network is ready', async t => {
@@ -556,10 +527,7 @@ describe('qbeat CLI', () => {
 
     const claudeCalls = readLines(sandbox.claudeLogPath).map(line => JSON.parse(line));
     assert.equal(claudeCalls.length, 1);
-    assert.deepEqual(claudeCalls[0], [
-      '-p', '--no-session-persistence',
-      '--tools', '', '--no-chrome', 'Reply with exactly OK.',
-    ]);
+    assert.deepEqual(claudeCalls[0], ['--no-chrome']);
 
     const codexCalls = readLines(sandbox.codexLogPath).map(line => JSON.parse(line));
     assert.equal(codexCalls.length, 1);

@@ -124,39 +124,38 @@ process.exit(1);
 
 const claudeShim = `#!/usr/bin/env node
 const { appendFileSync } = require('node:fs');
+const { createInterface } = require('node:readline');
 
 appendFileSync(
   process.env.QUOTA_BEAT_CLAUDE_LOG,
   \`\${JSON.stringify(process.argv.slice(2))}\\n\`
 );
 
-function finish() {
-  const exitCode = Number(process.env.QUOTA_BEAT_CLAUDE_EXIT_CODE || '0');
-  if (exitCode !== 0) {
-    process.stderr.write(process.env.QUOTA_BEAT_CLAUDE_STDERR || 'claude failed');
-    process.exit(exitCode);
+const exitCode = Number(process.env.QUOTA_BEAT_CLAUDE_EXIT_CODE || '0');
+
+if (exitCode !== 0) {
+  process.stderr.write(process.env.QUOTA_BEAT_CLAUDE_STDERR || 'claude failed');
+  process.exit(exitCode);
+}
+
+const rl = createInterface({ input: process.stdin, terminal: false });
+let responded = false;
+
+rl.on('line', line => {
+  const trimmed = line.replace(/\\r/g, '').trim();
+  if (trimmed === '/exit') {
+    rl.close();
+    process.stdin.destroy();
+    process.exit(0);
+  } else if (trimmed.length > 0 && !responded) {
+    responded = true;
+    process.stdout.write('OK\\n');
   }
+});
 
-  process.stdout.write('OK\\n');
-}
-
-if (process.env.QUOTA_BEAT_CLAUDE_REQUIRE_STDIN_EOF === '1') {
-  let finished = false;
-  const waitMs = Number(process.env.QUOTA_BEAT_CLAUDE_STDIN_WAIT_MS || '200');
-  process.stdin.on('end', () => {
-    finished = true;
-    finish();
-  });
-  process.stdin.resume();
-  setTimeout(() => {
-    if (!finished) {
-      process.stderr.write('stdin did not close');
-      process.exit(98);
-    }
-  }, waitMs);
-} else {
-  finish();
-}
+rl.on('close', () => {
+  process.exit(0);
+});
 `;
 
 const codexShim = `#!/usr/bin/env node
