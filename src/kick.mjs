@@ -6,6 +6,18 @@ import { promises as dns } from 'node:dns';
 
 const ANSI_RE = /\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07|\x1b[@-_]/g;
 
+function localISOString(ms) {
+  const d = new Date(ms);
+  const off = -d.getTimezoneOffset();
+  const sign = off >= 0 ? '+' : '-';
+  const hh = String(Math.floor(Math.abs(off) / 60)).padStart(2, '0');
+  const mm = String(Math.abs(off) % 60).padStart(2, '0');
+  const pad = (n, l = 2) => String(n).padStart(l, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T` +
+    `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}` +
+    `${sign}${hh}:${mm}`;
+}
+
 function stripAnsi(s) {
   return s.replace(ANSI_RE, '');
 }
@@ -218,7 +230,7 @@ export async function executeProvider(provider, { retries = 2, timeoutMs = 60000
   let lastErr;
   for (let i = 0; i < retries; i++) {
     const started = Date.now();
-    const startedAt = new Date(started).toISOString();
+    const startedAt = localISOString(started);
     try {
       const result = await runOnce();
       const finished = Date.now();
@@ -227,7 +239,7 @@ export async function executeProvider(provider, { retries = 2, timeoutMs = 60000
         attempt: i + 1,
         success: true,
         startedAt,
-        finishedAt: new Date(finished).toISOString(),
+        finishedAt: localISOString(finished),
         durationMs: finished - started,
         exitCode: result.exitCode,
         signal: result.signal,
@@ -246,7 +258,7 @@ export async function executeProvider(provider, { retries = 2, timeoutMs = 60000
         attempt: i + 1,
         success: false,
         startedAt,
-        finishedAt: new Date(finished).toISOString(),
+        finishedAt: localISOString(finished),
         durationMs: finished - started,
         exitCode: err.exitCode ?? null,
         signal: err.signal ?? null,
