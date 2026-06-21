@@ -1,6 +1,7 @@
 node_modules/
 var/
 iterations/
+# Superpowers working specs and plans are intentionally local and noncanonical.
 docs/superpowers/
 .vscode/
 .worktrees/

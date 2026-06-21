@@ -5,6 +5,10 @@ This file is the canonical engineering source of truth for this repository.
 - For Codex: load this file first.
 - For Claude CLI and Gemini CLI: their tool-specific entry files only point here.
 - Historical docs under `docs/superpowers/` are not canonical for the current implementation.
+- Superpowers-generated design specs and implementation plans must stay under
+  `docs/superpowers/specs/` and `docs/superpowers/plans/`. This directory is
+  intentionally gitignored: do not relocate these files into tracked `docs/`
+  paths and do not commit them.
 
 ## Project Summary
 
