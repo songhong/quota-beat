@@ -10,10 +10,13 @@ context: |
 rules:
   proposal:
     - "After creating proposal.md, insert a new row into docs/ROADMAP.md above the bottom comment line: | `<change-name>` | ○ | <YYYY-MM-DD> | — | where <change-name> is the exact openspec change directory name and <YYYY-MM-DD> is today's date."
+    - "After propose, commit the new change directory together with its ROADMAP row."
+    - "Set `skip_specs: true` in the change's `.openspec.yaml` when the change alters no observable behavior — process and governance files (`AGENTS.md`, `openspec/`), build or test tooling, docs, or a pure refactor. Anything that changes a route, payload, message, prompt contract, or state transition declares a capability instead."
   tasks:
     - "Wrap-up must run `npm run test` and confirm all acceptance tests pass."
     - "Wrap-up must update committed docs according to the Doc Update Map in AGENTS.md."
     - "Wrap-up must update docs/ROADMAP.md: find this story's row by the backtick-quoted change name in the 'Change' column, change ○ to ✓ in the Status column, and fill in today's date in the Done column."
     - "Wrap-up must commit with a descriptive message referencing the completed task numbers."
   apply:
-    - "NEVER implement tasks directly in the main agent. Each task group MUST be dispatched as its own subagent via the Agent tool. Default subagent_type: 'general-purpose'. Use 'codex:codex-rescue' only when the /opsx:apply invocation explicitly requests codex (e.g., 'executor: codex', '用 codex 执行')."
+    - "Integration branch: the branch apply starts on (normally `main`). Merges land in the main workspace, so before dispatching confirm it has no uncommitted change to any path a group declares in `writes`, nor to the change's tasks.md."
+    - "Executor under Claude Code: dispatch each group with subagent_type 'general-purpose' and isolation 'worktree' — the native worktree is the default. Under an executor with no native isolation (e.g. Codex, which has only `codex exec --cd <dir>`), create the worktree first: `git worktree add -b opsx/<change>/<group> .worktrees/<change>-<group> <baseline-sha>`."

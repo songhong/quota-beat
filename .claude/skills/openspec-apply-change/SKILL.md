@@ -1,9 +1,13 @@
 ---
-name: "OPSX: Apply"
-description: "Implement tasks from an OpenSpec change (Experimental)"
+name: openspec-apply-change
+description: Implement tasks from an OpenSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks.
 allowed-tools: Bash(openspec:*)
-category: "Workflow"
-tags: ["workflow", "artifacts", "experimental"]
+license: MIT
+compatibility: Requires openspec CLI.
+metadata:
+  author: openspec
+  version: "1.0"
+  generatedBy: "1.9.0"
 ---
 
 Implement tasks from an OpenSpec change.
